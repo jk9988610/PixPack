@@ -1,8 +1,9 @@
-export const FRAME_W = 32;
-export const FRAME_H = 32;
+export const FRAME_W = 16;
+export const FRAME_H = 16;
 export const FRAME_COUNT = 10;
 export const SHEET_W = FRAME_W * FRAME_COUNT;
 export const SHEET_H = FRAME_H;
+export const CANVAS_ZOOM = 10;
 
 export const PRESET_PALETTE = [
   'transparent',

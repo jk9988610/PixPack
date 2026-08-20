@@ -46,15 +46,15 @@ async function main() {
 
   const publicUrl = `${URL}/storage/v1/object/public/${BUCKET}/${STORAGE_PATH}?v=1`;
   const meta = {
-    frameWidth: 32,
-    frameHeight: 32,
-    scale: 3,
+    frameWidth: 16,
+    frameHeight: 16,
+    scale: 4,
     filter: 'nearest',
     animations: {
       idle: { frames: [0, 1, 2, 3], fps: 4, loop: true },
       walk: { frames: [4, 5, 6, 7, 8, 9], fps: 8, loop: true },
     },
-    frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 32, y: 0 })),
+    frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 16, y: 0 })),
   };
 
   await fetch(`${URL}/rest/v1/characters?pack_id=eq.${pack.id}`, {

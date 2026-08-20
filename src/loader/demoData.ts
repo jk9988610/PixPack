@@ -1,15 +1,15 @@
 import type { CharacterMeta, ManifestPack } from '../types';
 
 export const DEFAULT_CHARACTER_META: CharacterMeta = {
-  frameWidth: 32,
-  frameHeight: 32,
-  scale: 3,
+  frameWidth: 16,
+  frameHeight: 16,
+  scale: 4,
   filter: 'nearest',
   animations: {
     idle: { frames: [0, 1, 2, 3], fps: 4, loop: true },
     walk: { frames: [4, 5, 6, 7, 8, 9], fps: 8, loop: true },
   },
-  frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 32, y: 0 })),
+  frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 16, y: 0 })),
 };
 
 const DEMO_BOOTSTRAP: ManifestPack = {

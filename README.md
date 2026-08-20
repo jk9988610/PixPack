@@ -15,11 +15,10 @@
 ```bash
 npm install
 node scripts/generate-demo-spritesheet.mjs
-cp .env.example .env.local   # 填入 Supabase URL 与 anon key
 npm run dev
 ```
 
-未配置 Supabase 时进入 **Demo 模式**（本地 `public/demo/spritesheet.png`）。
+**画室**：主界面左侧点「画室」→ 16×16 骨骼蒙皮（像我的世界一样有初始骨架，只需换色/蒙皮；idle 0–3 / walk 4–9）→「保存到 Supabase」。对照 Card-World Pixel Board。
 
 ## Supabase 初始化
 
