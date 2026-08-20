@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outPath = join(__dirname, '../public/demo/spritesheet.png');
 
-const FRAME_W = 8;
-const FRAME_H = 8;
+const FRAME_W = 9;
+const FRAME_H = 9;
 const FRAMES_PER_DIRECTION = 2;
 const DIRECTION_COUNT = 4;
 const width = FRAME_W * FRAMES_PER_DIRECTION;
@@ -20,24 +20,11 @@ const COLORS = {
   f: [0, 102, 255, 255],
 };
 
-/** 行: 南/北/东/西 · 列: idle/walk */
 const SHEET_TEMPLATES = [
-  [
-    `..hh....\n.hhhh...\n.bbbb...\n.bb.b...\n..f.....`,
-    `..hh....\n.hhhh...\n.bbbb...\n.bb.b...\n.f......`,
-  ],
-  [
-    `..bb....\n.bbbb...\n.bbbb...\n.bb.b...\n..f.....`,
-    `..bb....\n.bbbb...\n.bbbb...\n.bb.b...\n.f......`,
-  ],
-  [
-    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n...f....`,
-    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n..f.....`,
-  ],
-  [
-    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n....f...`,
-    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n.....f..`,
-  ],
+  [`..hhh....\n..hhhh...\n..bbbb...\n...bb....\n...f.....`, `..hhh....\n..hhhh...\n..bbbb...\n...bb....\n..f......`],
+  [`..bbb....\n..bbbb...\n..bbbb...\n...bb....\n...f.....`, `..bbb....\n..bbbb...\n..bbbb...\n...bb....\n..f......`],
+  [`...hhh...\n..hhhhh..\n..bbbbb..\n...bbb...\n....f....`, `...hhh...\n..hhhhh..\n..bbbbb..\n...bbb...\n...f.....`],
+  [`...hhh...\n..hhhhh..\n..bbbbb..\n...bbb...\n.....f...`, `...hhh...\n..hhhhh..\n..bbbbb..\n...bbb...\n......f..`],
 ];
 
 function parseFrame(text) {
@@ -47,10 +34,18 @@ function parseFrame(text) {
       pixels.push(COLORS[ch] ?? COLORS['.']);
     }
   }
-  while (pixels.length < FRAME_W * FRAME_H) {
-    pixels.push(COLORS['.']);
-  }
+  while (pixels.length < FRAME_W * FRAME_H) pixels.push(COLORS['.']);
   return pixels;
+}
+
+function flipFrame(pixels) {
+  const out = [];
+  for (let y = 0; y < FRAME_H; y++) {
+    for (let x = FRAME_W - 1; x >= 0; x--) {
+      out.push(pixels[y * FRAME_W + x] ?? COLORS['.']);
+    }
+  }
+  return out;
 }
 
 function crc32(data) {
@@ -80,7 +75,9 @@ for (let sheetY = 0; sheetY < height; sheetY++) {
   for (let sheetX = 0; sheetX < width; sheetX++) {
     const frameIndex = Math.floor(sheetX / FRAME_W);
     const localX = sheetX % FRAME_W;
-    const pixels = parseFrame(SHEET_TEMPLATES[direction]?.[frameIndex] ?? '');
+    let pixels = parseFrame(SHEET_TEMPLATES[direction]?.[0] ?? '');
+    if (frameIndex === 1) pixels = [...pixels];
+    if (direction === 3) pixels = flipFrame(parseFrame(SHEET_TEMPLATES[2]?.[frameIndex] ?? ''));
     const rgba = pixels[localY * FRAME_W + localX] ?? COLORS['.'];
     const i = rowStart + 1 + sheetX * 4;
     raw[i] = rgba[0];

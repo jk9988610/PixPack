@@ -10,7 +10,7 @@ export interface SaveCharacterInput {
   file: File;
 }
 
-export async function saveCharacterSheet(input: SaveCharacterInput): Promise<void> {
+export async function saveCharacterSheet(input: SaveCharacterInput): Promise<string> {
   const supabase = getSupabase();
 
   const { data: pack, error: packError } = await supabase
@@ -21,7 +21,7 @@ export async function saveCharacterSheet(input: SaveCharacterInput): Promise<voi
   if (packError || !pack) throw packError ?? new Error(`资源包 ${input.packSlug} 不存在`);
 
   const nextVersion = (pack.version as number) + 1;
-  const storagePath = `assets/packs/${input.packSlug}/v${nextVersion}/spritesheet.png`;
+  const storagePath = `assets/packs/${input.packSlug}/v${nextVersion}/${input.characterId ?? 'new'}-spritesheet.png`;
 
   const { error: uploadError } = await supabase.storage
     .from(PIXPACK_ASSETS_BUCKET)
@@ -55,29 +55,28 @@ export async function saveCharacterSheet(input: SaveCharacterInput): Promise<voi
     role: 'player' as const,
     meta_json: input.meta,
     sheet_asset_id: assetRow.id,
+    updated_at: new Date().toISOString(),
   };
 
-  const { data: existingChar } = await supabase
-    .from('characters')
-    .select('id')
-    .eq('pack_id', pack.id)
-    .maybeSingle();
+  let savedId = input.characterId;
 
-  const targetCharacterId = input.characterId ?? existingChar?.id;
-
-  if (targetCharacterId) {
+  if (savedId) {
     const { error } = await supabase
       .from('characters')
       .update(characterPayload)
-      .eq('id', targetCharacterId);
+      .eq('id', savedId);
     if (error) throw error;
   } else {
-    const { error } = await supabase.from('characters').insert(characterPayload);
+    const { data: inserted, error } = await supabase
+      .from('characters')
+      .insert(characterPayload)
+      .select('id')
+      .single();
     if (error) throw error;
+    savedId = inserted.id as string;
   }
 
-  const totalBytes =
-    (pack.byte_size as number | null ?? 0) + input.file.size;
+  const totalBytes = (pack.byte_size as number | null ?? 0) + input.file.size;
   const { error: packUpdateError } = await supabase
     .from('asset_packs')
     .update({
@@ -87,4 +86,6 @@ export async function saveCharacterSheet(input: SaveCharacterInput): Promise<voi
     })
     .eq('id', pack.id);
   if (packUpdateError) throw packUpdateError;
+
+  return savedId!;
 }

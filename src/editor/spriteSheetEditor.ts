@@ -1,12 +1,14 @@
-export const FRAME_W = 8;
-export const FRAME_H = 8;
+export const FRAME_W = 9;
+export const FRAME_H = 9;
 export const FRAMES_PER_DIRECTION = 2;
 export const DIRECTION_COUNT = 4;
+export const DIR_E = 2;
+export const DIR_W = 3;
 export const FRAME_COUNT = FRAMES_PER_DIRECTION;
 export const TOTAL_FRAME_COUNT = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
 export const SHEET_W = FRAME_W * FRAMES_PER_DIRECTION;
 export const SHEET_H = FRAME_H * DIRECTION_COUNT;
-export const CANVAS_ZOOM = 16;
+export const CANVAS_ZOOM = 14;
 
 export const PRESET_PALETTE = [
   'transparent',
@@ -41,6 +43,60 @@ export function localToGlobal(
     x: frame * FRAME_W + localX,
     y: direction * FRAME_H + localY,
   };
+}
+
+/** 帧 1 复制该朝向帧 0 */
+export function syncWalkFromIdle(grid: string[], direction: number): void {
+  for (let ly = 0; ly < FRAME_H; ly++) {
+    for (let lx = 0; lx < FRAME_W; lx++) {
+      const { x: x0, y: y0 } = localToGlobal(direction, 0, lx, ly);
+      const { x: x1, y: y1 } = localToGlobal(direction, 1, lx, ly);
+      grid[gridIndex(x1, y1)] = grid[gridIndex(x0, y0)] ?? 'transparent';
+    }
+  }
+}
+
+/** 东/西侧面水平对称：sourceDir 为刚编辑的一侧 */
+export function syncEastWestMirror(grid: string[], frame: number, sourceDir: typeof DIR_E | typeof DIR_W): void {
+  const targetDir = sourceDir === DIR_E ? DIR_W : DIR_E;
+  for (let ly = 0; ly < FRAME_H; ly++) {
+    for (let lx = 0; lx < FRAME_W; lx++) {
+      const { x: sx, y: sy } = localToGlobal(sourceDir, frame, lx, ly);
+      const flipLx = FRAME_W - 1 - lx;
+      const { x: dx, y: dy } = localToGlobal(targetDir, frame, flipLx, ly);
+      grid[gridIndex(dx, dy)] = grid[gridIndex(sx, sy)] ?? 'transparent';
+    }
+  }
+}
+
+export function syncAllFramesInit(grid: string[]): void {
+  for (let direction = 0; direction < DIRECTION_COUNT; direction++) {
+    syncWalkFromIdle(grid, direction);
+  }
+  syncEastWestMirror(grid, 0, DIR_E);
+  syncEastWestMirror(grid, 1, DIR_E);
+}
+
+export function createInitialGrid(): string[] {
+  const grid = createEmptyGrid();
+  syncAllFramesInit(grid);
+  return grid;
+}
+
+export function afterFrameEdit(
+  grid: string[],
+  direction: number,
+  frame: number,
+): void {
+  if (frame === 0) {
+    syncWalkFromIdle(grid, direction);
+  }
+  if (direction === DIR_E || direction === DIR_W) {
+    syncEastWestMirror(grid, frame, direction as typeof DIR_E);
+    if (frame === 0) {
+      syncWalkFromIdle(grid, direction === DIR_E ? DIR_W : DIR_E);
+    }
+  }
 }
 
 export async function gridToPngBlob(grid: string[]): Promise<Blob> {

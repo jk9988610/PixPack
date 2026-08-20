@@ -1,8 +1,4 @@
-import {
-  findPlayerPack,
-  loadPacks,
-  prefetchPacks,
-} from '../loader/packLoader';
+import { loadPacks } from '../loader/packLoader';
 import { SpritePlayer } from '../pixi/spritePlayer';
 import {
   getSupabase,
@@ -11,11 +7,14 @@ import {
   signInWithEmail,
   signOut,
 } from '../supabase/client';
+import {
+  deleteRepositoryItem,
+  listRepositoryItems,
+  updateRepositoryItemName,
+} from '../supabase/repository';
 import { saveCharacterSheet } from '../supabase/upload';
-import { isPlaceholderCharacter } from '../supabase/manifest';
 import { createLoadingScreen } from '../ui/loadingScreen';
 import { createMainScreen } from '../ui/mainScreen';
-import type { CharacterMeta } from '../types';
 
 export async function startApp(root: HTMLElement): Promise<void> {
   const loading = createLoadingScreen(root);
@@ -28,53 +27,46 @@ export async function startApp(root: HTMLElement): Promise<void> {
 
   const runBootstrap = async () => {
     try {
-      const result = await loadPacks(['bootstrap', 'player'], (p) => loading.update(p));
+      await loadPacks(['bootstrap'], (p) => loading.update(p));
       loading.hide();
 
-      const playerPack = findPlayerPack(result.packs);
-      if (!playerPack) throw new Error('player 资源包未加载');
-
-      const characterId = playerPack.manifest.characters[0]?.id ?? null;
-      const placeholderPreview = isPlaceholderCharacter(characterId ?? undefined);
-      const sheetAsset = playerPack.assets.find(
-        (a) => a.asset.kind === 'spritesheet' || a.asset.id === playerPack.manifest.characters[0]?.sheet_asset_id,
-      );
-      const initialSheetUrl = sheetAsset?.objectUrl;
+      let repositoryItems = isSupabaseConfigured() ? await listRepositoryItems() : [];
 
       const main = createMainScreen(root, {
         isConfigured: isSupabaseConfigured(),
         isSignedIn: signedIn,
-        placeholderPreview,
-        initialSheetUrl,
+        repositoryItems,
         onSignIn: signInWithEmail,
         onSignOut: async () => {
           await signOut();
           main.setSignedIn(false);
         },
-        onSave: async (payload: { file: File; meta: CharacterMeta; characterId?: string }) => {
-          await saveCharacterSheet({
+        onSave: async (payload) => {
+          return saveCharacterSheet({
             file: payload.file,
             meta: payload.meta,
-            characterId: placeholderPreview ? undefined : payload.characterId,
+            characterId: payload.characterId,
             packSlug: 'player',
-            name: '默认',
+            name: payload.name,
           });
-          main.showToast('保存成功，刷新页面后加载云端角色');
         },
+        onRename: updateRepositoryItemName,
+        onDelete: deleteRepositoryItem,
+        onRefreshRepository: listRepositoryItems,
       });
 
       const player = new SpritePlayer(main.getCanvasMount());
       await player.init();
-      await player.loadFromPack(playerPack);
       main.bindPlayer(player);
 
-      if (placeholderPreview && isSupabaseConfigured()) {
-        main.showToast('可进入「画室」绘制角色，画完点保存');
+      if (!isSupabaseConfigured()) {
+        main.showToast('Supabase 未连接，无法使用仓库');
+      } else if (!repositoryItems.length) {
+        main.showToast('仓库为空，请新建或在画室保存角色');
       } else {
-        main.showToast('左侧「画室」可绘制精灵并保存到 Supabase');
+        main.showToast('打开「仓库」选择角色加载');
       }
 
-      prefetchPacks([]);
       main.setPrefetchStatus('');
 
       onAuthStateChange((isIn) => {

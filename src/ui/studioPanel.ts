@@ -8,10 +8,12 @@ import {
 } from '../editor/history';
 import {
   CANVAS_ZOOM,
+  DIR_W,
   FRAME_H,
   FRAME_W,
   PRESET_PALETTE,
-  createEmptyGrid,
+  afterFrameEdit,
+  createInitialGrid,
   floodFill,
   gridIndex,
   gridToPngBlob,
@@ -21,7 +23,6 @@ import {
 } from '../editor/spriteSheetEditor';
 
 export interface StudioPanelOptions {
-  initialImageUrl?: string;
   onPreview: (objectUrl: string) => Promise<void>;
   onDirectionChange?: (direction: number) => void;
   onSave: (file: File) => Promise<void>;
@@ -31,6 +32,7 @@ export interface StudioPanelOptions {
 
 export interface StudioPanelHandle {
   loadFromUrl(url: string): Promise<void>;
+  resetGrid(): void;
   setDirection(direction: number): void;
 }
 
@@ -64,11 +66,11 @@ export function createStudioPanel(
       </div>
       <div class="studio-canvas-wrap">
         <canvas width="${FRAME_W * CANVAS_ZOOM}" height="${FRAME_H * CANVAS_ZOOM}" data-pixel-canvas class="pixel-canvas"></canvas>
-        <p class="studio-hint">8×8 · 4 朝向 · 2 帧 · 放大 ${CANVAS_ZOOM}×</p>
+        <p class="studio-hint">9×9 · 4 朝向 · 2 帧 · 东/西自动对称 · walk 初始同 idle</p>
       </div>
       <div class="studio-actions">
         <button type="button" class="btn btn-ghost" data-apply-preview>应用到预览</button>
-        <button type="button" class="btn btn-primary" data-save-studio>保存到 Supabase</button>
+        <button type="button" class="btn btn-primary" data-save-studio>保存到仓库</button>
       </div>
     </div>
   `;
@@ -80,7 +82,7 @@ export function createStudioPanel(
   const colorInput = root.querySelector<HTMLInputElement>('[data-color]')!;
   const saveBtn = root.querySelector<HTMLButtonElement>('[data-save-studio]')!;
 
-  let grid = createEmptyGrid();
+  let grid = createInitialGrid();
   const history = createArtHistory();
   resetArtHistory(history, grid);
 
@@ -103,9 +105,7 @@ export function createStudioPanel(
   });
 
   root.querySelectorAll<HTMLButtonElement>('[data-frame]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      selectFrame(Number(btn.dataset.frame));
-    });
+    btn.addEventListener('click', () => selectFrame(Number(btn.dataset.frame)));
   });
 
   PRESET_PALETTE.forEach((swatch, idx) => {
@@ -215,7 +215,10 @@ export function createStudioPanel(
     if (tool === 'fill') {
       const { x, y } = localToGlobal(currentDirection, currentFrame, lx, ly);
       const target = grid[gridIndex(x, y)] ?? 'transparent';
-      if (floodFill(grid, x, y, target, color)) strokeDirty = true;
+      if (floodFill(grid, x, y, target, color)) {
+        afterFrameEdit(grid, currentDirection, currentFrame);
+        strokeDirty = true;
+      }
       redraw();
       return;
     }
@@ -227,6 +230,7 @@ export function createStudioPanel(
 
   function commitStroke(): void {
     if (!strokeDirty) return;
+    afterFrameEdit(grid, currentDirection, currentFrame);
     pushArtHistory(history, grid);
     strokeDirty = false;
     schedulePreview();
@@ -250,6 +254,10 @@ export function createStudioPanel(
         ctx.fillRect(lx * scale, ly * scale, scale, scale);
       }
     }
+    if (currentDirection === DIR_W) {
+      ctx.fillStyle = '#ffffff11';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
     ctx.strokeStyle = '#e9456088';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
@@ -272,12 +280,11 @@ export function createStudioPanel(
       const blob = await gridToPngBlob(grid);
       const file = new File([blob], 'spritesheet.png', { type: 'image/png' });
       await options.onSave(file);
-      options.showToast('已保存到 Supabase，刷新后加载云端版本');
     } catch (error) {
       options.showToast(error instanceof Error ? error.message : '保存失败');
     } finally {
       saveBtn.disabled = !options.canSave;
-      saveBtn.textContent = '保存到 Supabase';
+      saveBtn.textContent = '保存到仓库';
     }
   }
 
@@ -312,14 +319,17 @@ export function createStudioPanel(
     redraw();
   }
 
-  redraw();
-
-  if (options.initialImageUrl) {
-    void loadFromUrl(options.initialImageUrl).catch(() => undefined);
+  function resetGrid(): void {
+    grid = createInitialGrid();
+    resetArtHistory(history, grid);
+    redraw();
   }
+
+  redraw();
 
   return {
     loadFromUrl,
+    resetGrid,
     setDirection(direction: number) {
       selectDirection(direction);
     },

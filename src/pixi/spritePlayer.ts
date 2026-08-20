@@ -6,7 +6,7 @@ import {
   resolveTextureIndex,
   type DirectionId,
 } from '../editor/directions';
-import type { CharacterMeta, LoadedPack } from '../types';
+import type { CharacterMeta } from '../types';
 
 export class SpritePlayer {
   private app: Application | null = null;
@@ -17,6 +17,7 @@ export class SpritePlayer {
   private frameIndex = 0;
   private elapsed = 0;
   private textures: Texture[] = [];
+  private tickBound = false;
   private mountEl: HTMLElement;
 
   constructor(mountEl: HTMLElement) {
@@ -54,47 +55,50 @@ export class SpritePlayer {
     this.app.stage.addChildAt(grid, 0);
   }
 
-  async loadFromPack(pack: LoadedPack): Promise<void> {
-    const character = pack.manifest.characters[0];
-    const sheetAsset = pack.assets.find(
-      (a) => a.asset.id === character?.sheet_asset_id || a.asset.kind === 'spritesheet',
-    );
-    if (!character || !sheetAsset) {
-      throw new Error('player pack 缺少角色或精灵图');
+  clear(): void {
+    if (this.sprite) {
+      this.sprite.visible = false;
     }
+    this.meta = null;
+    this.textures = [];
+  }
 
-    this.meta = character.meta_json;
-    const baseTexture = await Assets.load<Texture>({
-      src: sheetAsset.objectUrl,
-      parser: 'texture',
-    });
+  isLoaded(): boolean {
+    return Boolean(this.meta && this.textures.length);
+  }
+
+  async loadCharacter(meta: CharacterMeta, objectUrl: string): Promise<void> {
+    if (!this.app) return;
+
+    this.meta = meta;
+    const baseTexture = await Assets.load<Texture>({ src: objectUrl, parser: 'texture' });
     baseTexture.source.scaleMode = 'nearest';
 
-    this.textures = this.meta.frames.map((frame) => {
-      return new Texture({
-        source: baseTexture.source,
-        frame: new Rectangle(
-          frame.x,
-          frame.y,
-          this.meta!.frameWidth,
-          this.meta!.frameHeight,
-        ),
-      });
-    });
+    this.textures = meta.frames.map(
+      (frame) =>
+        new Texture({
+          source: baseTexture.source,
+          frame: new Rectangle(frame.x, frame.y, meta.frameWidth, meta.frameHeight),
+        }),
+    );
 
-    if (this.sprite) {
-      this.sprite.destroy();
+    if (!this.sprite) {
+      this.sprite = new Sprite(this.textures[0]!);
+      this.sprite.anchor.set(0.5);
+      this.sprite.x = this.app.screen.width / 2;
+      this.sprite.y = this.app.screen.height / 2;
+      this.app.stage.addChild(this.sprite);
     }
-    this.sprite = new Sprite(this.textures[0]!);
-    this.sprite.anchor.set(0.5);
-    this.sprite.scale.set(this.meta.scale);
-    this.sprite.x = this.app!.screen.width / 2;
-    this.sprite.y = this.app!.screen.height / 2;
-    this.app!.stage.addChild(this.sprite);
 
-    this.direction = isDirectionalMeta(this.meta) ? 2 : 0;
+    this.sprite.visible = true;
+    this.sprite.scale.set(meta.scale);
+    this.direction = isDirectionalMeta(meta) ? 2 : 0;
     this.setAnimation('idle');
-    this.app!.ticker.add(this.tick, this);
+
+    if (!this.tickBound) {
+      this.app.ticker.add(this.tick, this);
+      this.tickBound = true;
+    }
   }
 
   setAnimation(name: string): void {
@@ -131,25 +135,11 @@ export class SpritePlayer {
   }
 
   async hotReload(objectUrl: string, meta: CharacterMeta): Promise<void> {
-    if (!this.app) return;
-    this.meta = meta;
-    if (!isDirectionalMeta(meta)) {
-      this.direction = 0;
-    }
-    const baseTexture = await Assets.load<Texture>({ src: objectUrl, parser: 'texture' });
-    baseTexture.source.scaleMode = 'nearest';
-    this.textures = meta.frames.map(
-      (frame) =>
-        new Texture({
-          source: baseTexture.source,
-          frame: new Rectangle(frame.x, frame.y, meta.frameWidth, meta.frameHeight),
-        }),
-    );
-    this.applyFrame();
+    await this.loadCharacter(meta, objectUrl);
   }
 
   private tick = (): void => {
-    if (!this.meta || !this.sprite) return;
+    if (!this.meta || !this.sprite?.visible) return;
     const anim = this.meta.animations[this.animation];
     if (!anim) return;
     this.elapsed += this.app!.ticker.deltaMS / 1000;
