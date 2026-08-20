@@ -78,7 +78,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
 
   configBadge.textContent = options.isConfigured
     ? 'Supabase 已连接'
-    : 'Demo 模式 — 检查 src/supabase/cloud-config.ts';
+    : 'Supabase 未连接';
 
   let playerRef: SpritePlayer | null = null;
   let pendingFile: File | null = null;

@@ -19,23 +19,34 @@ export const PIXPACK_ASSETS_BUCKET = 'pixpack-assets';
 
 const LS_CLOUD = 'pixpack-cloud-config';
 
+export function isValidCloudConfig(url?: string, anonKey?: string): boolean {
+  return Boolean(
+    url &&
+      anonKey &&
+      !url.includes('your-project') &&
+      !anonKey.includes('your-anon-key') &&
+      url.startsWith('https://') &&
+      anonKey.startsWith('eyJ'),
+  );
+}
+
 export function getCloudConfig(): CloudConfig {
   try {
     const raw = localStorage.getItem(LS_CLOUD);
     if (raw) {
       const parsed = JSON.parse(raw) as CloudConfig;
-      if (parsed?.url && parsed?.anonKey) return parsed;
+      if (isValidCloudConfig(parsed?.url, parsed?.anonKey)) {
+        return { url: parsed.url.trim(), anonKey: parsed.anonKey.trim() };
+      }
+      localStorage.removeItem(LS_CLOUD);
     }
   } catch {
-    /* ignore */
+    localStorage.removeItem(LS_CLOUD);
   }
-  if (DEFAULT_CLOUD_CONFIG.url && DEFAULT_CLOUD_CONFIG.anonKey) {
-    return { ...DEFAULT_CLOUD_CONFIG };
-  }
-  return { url: '', anonKey: '' };
+  return { ...DEFAULT_CLOUD_CONFIG };
 }
 
 export function isCloudEnabled(): boolean {
   const cfg = getCloudConfig();
-  return Boolean(cfg.url && cfg.anonKey);
+  return isValidCloudConfig(cfg.url, cfg.anonKey);
 }

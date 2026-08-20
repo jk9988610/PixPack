@@ -1,32 +1,26 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { getCloudConfig } from './cloud-config';
-
-function isValidConfig(candidateUrl?: string, candidateKey?: string): boolean {
-  return Boolean(
-    candidateUrl &&
-      candidateKey &&
-      !candidateUrl.includes('your-project') &&
-      !candidateKey.includes('your-anon-key') &&
-      candidateUrl.startsWith('https://'),
-  );
-}
+import {
+  DEFAULT_CLOUD_CONFIG,
+  getCloudConfig,
+  isCloudEnabled,
+  isValidCloudConfig,
+} from './cloud-config';
 
 function resolveConfig(): { url: string; anonKey: string } {
   const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
   const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
-  if (isValidConfig(envUrl, envKey)) {
+  if (isValidCloudConfig(envUrl, envKey)) {
     return { url: envUrl!, anonKey: envKey! };
   }
   const cloud = getCloudConfig();
-  if (isValidConfig(cloud.url, cloud.anonKey)) {
+  if (isValidCloudConfig(cloud.url, cloud.anonKey)) {
     return cloud;
   }
-  return { url: '', anonKey: '' };
+  return { ...DEFAULT_CLOUD_CONFIG };
 }
 
 export function isSupabaseConfigured(): boolean {
-  const cfg = resolveConfig();
-  return isValidConfig(cfg.url, cfg.anonKey);
+  return isCloudEnabled();
 }
 
 let client: SupabaseClient | null = null;
