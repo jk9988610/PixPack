@@ -1,4 +1,11 @@
 import { Application, Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js';
+import {
+  DIRECTION_COUNT,
+  directionIndex,
+  isEightDirectionMeta,
+  resolveTextureIndex,
+  type DirectionId,
+} from '../editor/directions';
 import type { CharacterMeta, LoadedPack } from '../types';
 
 export class SpritePlayer {
@@ -6,6 +13,7 @@ export class SpritePlayer {
   private sprite: Sprite | null = null;
   private meta: CharacterMeta | null = null;
   private animation = 'idle';
+  private direction = 6;
   private frameIndex = 0;
   private elapsed = 0;
   private textures: Texture[] = [];
@@ -84,6 +92,7 @@ export class SpritePlayer {
     this.sprite.y = this.app!.screen.height / 2;
     this.app!.stage.addChild(this.sprite);
 
+    this.direction = isEightDirectionMeta(this.meta) ? 6 : 0;
     this.setAnimation('idle');
     this.app!.ticker.add(this.tick, this);
   }
@@ -96,21 +105,37 @@ export class SpritePlayer {
     this.applyFrame();
   }
 
+  setDirection(id: DirectionId | number): void {
+    if (!this.meta) return;
+    const next = typeof id === 'number' ? id : directionIndex(id);
+    if (next < 0 || next >= DIRECTION_COUNT) return;
+    this.direction = next;
+    this.applyFrame();
+  }
+
+  getDirection(): number {
+    return this.direction;
+  }
+
   getAnimation(): string {
     return this.animation;
   }
 
-  getFrameInfo(): { index: number; total: number } {
+  getFrameInfo(): { index: number; total: number; direction: number } {
     const anim = this.meta?.animations[this.animation];
     return {
       index: this.frameIndex,
       total: anim?.frames.length ?? 0,
+      direction: this.direction,
     };
   }
 
   async hotReload(objectUrl: string, meta: CharacterMeta): Promise<void> {
     if (!this.app) return;
     this.meta = meta;
+    if (!isEightDirectionMeta(meta)) {
+      this.direction = 0;
+    }
     const baseTexture = await Assets.load<Texture>({ src: objectUrl, parser: 'texture' });
     baseTexture.source.scaleMode = 'nearest';
     this.textures = meta.frames.map(
@@ -142,8 +167,9 @@ export class SpritePlayer {
   private applyFrame(): void {
     if (!this.meta || !this.sprite) return;
     const anim = this.meta.animations[this.animation];
-    const frameNumber = anim.frames[this.frameIndex] ?? anim.frames[0] ?? 0;
-    const texture = this.textures[frameNumber];
+    const frameInDirection = anim.frames[this.frameIndex] ?? anim.frames[0] ?? 0;
+    const textureIndex = resolveTextureIndex(this.meta, this.direction, frameInDirection);
+    const texture = this.textures[textureIndex];
     if (texture) this.sprite.texture = texture;
   }
 

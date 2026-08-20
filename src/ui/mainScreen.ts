@@ -1,4 +1,5 @@
 import type { CharacterMeta } from '../types';
+import { DIRECTION_IDS, DIRECTION_LABELS } from '../editor/directions';
 import { DEFAULT_CHARACTER_META } from '../loader/demoData';
 import type { SpritePlayer } from '../pixi/spritePlayer';
 import { createStudioPanel, type StudioPanelHandle } from './studioPanel';
@@ -18,6 +19,7 @@ export interface MainScreenOptions {
 export interface MainScreenHandle {
   getCanvasMount(): HTMLElement;
   setAnimation(name: string): void;
+  setDirection(direction: number): void;
   bindPlayer(player: SpritePlayer): void;
   setSignedIn(signedIn: boolean): void;
   showToast(message: string): void;
@@ -51,11 +53,13 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
             <h3>动作</h3>
             <label class="radio"><input type="radio" name="anim" value="idle" checked /> idle</label>
             <label class="radio"><input type="radio" name="anim" value="walk" /> walk</label>
+            <h3>朝向</h3>
+            <div class="direction-pad" data-direction-pad></div>
           </div>
         </aside>
         <section class="stage-panel" data-preview-panel>
           <div class="canvas-wrap" data-canvas></div>
-          <div class="frame-info" data-frame-info>当前: idle  帧 1/4</div>
+          <div class="frame-info" data-frame-info>当前: idle · 东 · 帧 1/4</div>
         </section>
         <section class="studio-panel hidden" data-studio-panel>
           <div data-studio-root></div>
@@ -109,6 +113,9 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     initialImageUrl: options.initialSheetUrl,
     canSave: options.isConfigured,
     showToast,
+    onDirectionChange: (direction) => {
+      playerRef?.setDirection(direction);
+    },
     onPreview: async (objectUrl) => {
       if (!playerRef) return;
       await playerRef.hotReload(objectUrl, buildMeta());
@@ -125,10 +132,29 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
 
   function updateFrameInfo(): void {
     if (!playerRef || currentView !== 'preview') return;
-    const { index, total } = playerRef.getFrameInfo();
-    frameInfo.textContent = `当前: ${playerRef.getAnimation()}  帧 ${index + 1}/${total}`;
+    const { index, total, direction } = playerRef.getFrameInfo();
+    const dirId = DIRECTION_IDS[direction] ?? 'e';
+    const dirLabel = DIRECTION_LABELS[dirId] ?? dirId;
+    frameInfo.textContent = `当前: ${playerRef.getAnimation()} · ${dirLabel} · 帧 ${index + 1}/${total}`;
     rafId = requestAnimationFrame(updateFrameInfo);
   }
+
+  const directionPad = root.querySelector<HTMLElement>('[data-direction-pad]')!;
+  DIRECTION_IDS.forEach((id, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `direction-pad-btn${index === 6 ? ' active' : ''}`;
+    btn.textContent = DIRECTION_LABELS[id];
+    btn.title = id;
+    btn.addEventListener('click', () => {
+      setDirection(index);
+      directionPad.querySelectorAll('.direction-pad-btn').forEach((el) => {
+        el.classList.toggle('active', el === btn);
+      });
+      studio.setDirection(index);
+    });
+    directionPad.appendChild(btn);
+  });
 
   root.querySelectorAll<HTMLButtonElement>('.view-tab').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -199,6 +225,10 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     playerRef?.setAnimation(name);
   }
 
+  function setDirection(direction: number): void {
+    playerRef?.setDirection(direction);
+  }
+
   function switchView(view: MainView): void {
     currentView = view;
     root.querySelectorAll('.view-tab').forEach((el) => {
@@ -213,6 +243,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
   return {
     getCanvasMount: () => canvasWrap,
     setAnimation,
+    setDirection,
     bindPlayer(player) {
       playerRef = player;
       cancelAnimationFrame(rafId);

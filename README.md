@@ -18,7 +18,7 @@ node scripts/generate-demo-spritesheet.mjs
 npm run dev
 ```
 
-**画室**：主界面左侧点「画室」→ 16×16 骨骼蒙皮（像我的世界一样有初始骨架，只需换色/蒙皮；idle 0–3 / walk 4–9）→「保存到 Supabase」。对照 Card-World Pixel Board。
+**画室**：主界面左侧点「画室」→ 16×16 骨骼蒙皮、**8 朝向**（暗黑式，南/西南/…/东南各行独立）→ 保存到 Supabase。
 
 ## Supabase 初始化
 

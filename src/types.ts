@@ -19,6 +19,10 @@ export interface CharacterMeta {
   frameHeight: number;
   scale: number;
   filter: 'nearest' | 'linear';
+  /** 8 方向 id 列表，顺序对应精灵图行号（暗黑式多朝向） */
+  directions?: string[];
+  /** 每个朝向占用的帧数（默认 10：idle 4 + walk 6） */
+  framesPerDirection?: number;
   animations: Record<string, AnimationDef>;
   frames: Array<{ x: number; y: number }>;
 }

@@ -22,6 +22,11 @@ const headers = {
   Authorization: `Bearer ${ANON}`,
 };
 
+const FRAME_W = 16;
+const FRAMES_PER_DIRECTION = 10;
+const DIRECTION_COUNT = 8;
+const TOTAL_FRAMES = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
+
 async function main() {
   const packRes = await fetch(
     `${URL}/rest/v1/asset_packs?slug=eq.player&select=id,version`,
@@ -46,15 +51,20 @@ async function main() {
 
   const publicUrl = `${URL}/storage/v1/object/public/${BUCKET}/${STORAGE_PATH}?v=1`;
   const meta = {
-    frameWidth: 16,
-    frameHeight: 16,
+    frameWidth: FRAME_W,
+    frameHeight: FRAME_W,
     scale: 4,
     filter: 'nearest',
+    directions: ['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'],
+    framesPerDirection: FRAMES_PER_DIRECTION,
     animations: {
       idle: { frames: [0, 1, 2, 3], fps: 4, loop: true },
       walk: { frames: [4, 5, 6, 7, 8, 9], fps: 8, loop: true },
     },
-    frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 16, y: 0 })),
+    frames: Array.from({ length: TOTAL_FRAMES }, (_, i) => ({
+      x: (i % FRAMES_PER_DIRECTION) * FRAME_W,
+      y: Math.floor(i / FRAMES_PER_DIRECTION) * FRAME_W,
+    })),
   };
 
   await fetch(`${URL}/rest/v1/characters?pack_id=eq.${pack.id}`, {
