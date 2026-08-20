@@ -201,7 +201,7 @@ body {
   font-size: 0.7rem;
 }
 .direction-tab.active { border-color: var(--accent); color: var(--accent); }
-.direction-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; }
+.direction-pad { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.25rem; }
 .direction-pad-btn {
   padding: 0.3rem 0.2rem;
   border: 1px solid var(--border);
@@ -212,20 +212,7 @@ body {
   font: inherit;
   font-size: 0.72rem;
 }
-.direction-pad-btn:nth-child(1) { grid-column: 2; }
 .direction-pad-btn.active { border-color: var(--accent); color: var(--accent); }
-.bone-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; }
-.bone-btn {
-  padding: 0.2rem 0.45rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: #0f0f18;
-  color: var(--text);
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.75rem;
-}
-.bone-btn:hover { border-color: var(--accent); color: var(--accent); }
 .studio-tool.active { border-color: var(--accent); color: var(--accent); }
 .palette-row { gap: 0.25rem; }
 .swatch {

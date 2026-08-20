@@ -1,7 +1,4 @@
-import {
-  DIRECTION_IDS,
-  DIRECTION_LABELS,
-} from '../editor/directions';
+import { DIRECTION_IDS, DIRECTION_LABELS } from '../editor/directions';
 import {
   createArtHistory,
   pushArtHistory,
@@ -10,21 +7,12 @@ import {
   undoArtHistory,
 } from '../editor/history';
 import {
-  BONE_OPTIONS,
-  createDefaultSkinGrid,
-  fillBoneOnFrame,
-  floodFillBone,
-  getSkeletonGuideColor,
-  isPaintable,
-  mergeAllSkinWithSkeleton,
-  type BoneId,
-} from '../editor/skeleton';
-import {
   CANVAS_ZOOM,
   FRAME_H,
   FRAME_W,
-  FRAMES_PER_DIRECTION,
   PRESET_PALETTE,
+  createEmptyGrid,
+  floodFill,
   gridIndex,
   gridToPngBlob,
   loadGridFromImageUrl,
@@ -59,7 +47,8 @@ export function createStudioPanel(
         </div>
         <div class="studio-group">
           <span class="studio-label">帧</span>
-          <div class="frame-tabs" data-frame-tabs></div>
+          <button type="button" class="frame-tab active" data-frame="0">0 idle</button>
+          <button type="button" class="frame-tab" data-frame="1">1 walk</button>
         </div>
         <div class="studio-group">
           <span class="studio-label">工具</span>
@@ -70,16 +59,12 @@ export function createStudioPanel(
           <button type="button" class="btn btn-ghost" data-undo>撤销</button>
           <button type="button" class="btn btn-ghost" data-redo>重做</button>
         </div>
-        <div class="studio-group">
-          <span class="studio-label">骨骼</span>
-          <div class="bone-tabs" data-bone-tabs></div>
-        </div>
         <div class="studio-group palette-row" data-palette></div>
         <input type="color" data-color value="#e94560" class="color-input" />
       </div>
       <div class="studio-canvas-wrap">
         <canvas width="${FRAME_W * CANVAS_ZOOM}" height="${FRAME_H * CANVAS_ZOOM}" data-pixel-canvas class="pixel-canvas"></canvas>
-        <p class="studio-hint">16×16 · 8 朝向 · 骨骼蒙皮 · 放大 ${CANVAS_ZOOM}× · idle 0–3 · walk 4–9</p>
+        <p class="studio-hint">8×8 · 4 朝向 · 2 帧 · 放大 ${CANVAS_ZOOM}×</p>
       </div>
       <div class="studio-actions">
         <button type="button" class="btn btn-ghost" data-apply-preview>应用到预览</button>
@@ -91,17 +76,15 @@ export function createStudioPanel(
   const canvas = root.querySelector<HTMLCanvasElement>('[data-pixel-canvas]')!;
   const ctx = canvas.getContext('2d')!;
   const directionTabs = root.querySelector<HTMLElement>('[data-direction-tabs]')!;
-  const frameTabs = root.querySelector<HTMLElement>('[data-frame-tabs]')!;
-  const boneTabs = root.querySelector<HTMLElement>('[data-bone-tabs]')!;
   const paletteEl = root.querySelector<HTMLElement>('[data-palette]')!;
   const colorInput = root.querySelector<HTMLInputElement>('[data-color]')!;
   const saveBtn = root.querySelector<HTMLButtonElement>('[data-save-studio]')!;
 
-  let grid = createDefaultSkinGrid();
+  let grid = createEmptyGrid();
   const history = createArtHistory();
   resetArtHistory(history, grid);
 
-  let currentDirection = 6;
+  let currentDirection = 2;
   let currentFrame = 0;
   let tool: Tool = 'brush';
   let color = colorInput.value;
@@ -114,30 +97,15 @@ export function createStudioPanel(
     btn.type = 'button';
     btn.className = `direction-tab${index === currentDirection ? ' active' : ''}`;
     btn.textContent = DIRECTION_LABELS[id];
-    btn.title = id;
     btn.dataset.direction = String(index);
     btn.addEventListener('click', () => selectDirection(index));
     directionTabs.appendChild(btn);
   });
 
-  for (let i = 0; i < FRAMES_PER_DIRECTION; i++) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `frame-tab${i === 0 ? ' active' : ''}`;
-    btn.textContent = String(i);
-    btn.title = i < 4 ? `idle ${i}` : `walk ${i - 4}`;
-    btn.addEventListener('click', () => selectFrame(i));
-    frameTabs.appendChild(btn);
-  }
-
-  BONE_OPTIONS.forEach(({ id, label }) => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bone-btn';
-    btn.textContent = label;
-    btn.title = `用当前颜色填充「${label}」`;
-    btn.addEventListener('click', () => fillBone(id));
-    boneTabs.appendChild(btn);
+  root.querySelectorAll<HTMLButtonElement>('[data-frame]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectFrame(Number(btn.dataset.frame));
+    });
   });
 
   PRESET_PALETTE.forEach((swatch, idx) => {
@@ -211,8 +179,8 @@ export function createStudioPanel(
 
   function selectFrame(index: number): void {
     currentFrame = index;
-    frameTabs.querySelectorAll('.frame-tab').forEach((el, i) => {
-      el.classList.toggle('active', i === index);
+    root.querySelectorAll<HTMLButtonElement>('[data-frame]').forEach((el) => {
+      el.classList.toggle('active', Number(el.dataset.frame) === index);
     });
     redraw();
   }
@@ -231,21 +199,11 @@ export function createStudioPanel(
   }
 
   function setCellColor(lx: number, ly: number, value: string): void {
-    if (!isPaintable(currentDirection, currentFrame, lx, ly)) return;
     const { x, y } = localToGlobal(currentDirection, currentFrame, lx, ly);
     grid[gridIndex(x, y)] = value;
   }
 
-  function fillBone(bone: BoneId): void {
-    fillBoneOnFrame(grid, currentDirection, currentFrame, bone, color);
-    pushArtHistory(history, grid);
-    redraw();
-    schedulePreview();
-  }
-
   function applyTool(lx: number, ly: number): void {
-    if (!isPaintable(currentDirection, currentFrame, lx, ly)) return;
-
     if (tool === 'picker') {
       const picked = getCellColor(lx, ly);
       if (picked !== 'transparent') {
@@ -255,9 +213,9 @@ export function createStudioPanel(
       return;
     }
     if (tool === 'fill') {
-      if (floodFillBone(grid, currentDirection, currentFrame, lx, ly, color)) {
-        strokeDirty = true;
-      }
+      const { x, y } = localToGlobal(currentDirection, currentFrame, lx, ly);
+      const target = grid[gridIndex(x, y)] ?? 'transparent';
+      if (floodFill(grid, x, y, target, color)) strokeDirty = true;
       redraw();
       return;
     }
@@ -284,17 +242,6 @@ export function createStudioPanel(
   function redraw(): void {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const scale = canvas.width / FRAME_W;
-
-    for (let ly = 0; ly < FRAME_H; ly++) {
-      for (let lx = 0; lx < FRAME_W; lx++) {
-        const guide = getSkeletonGuideColor(currentDirection, currentFrame, lx, ly);
-        if (guide) {
-          ctx.fillStyle = guide;
-          ctx.fillRect(lx * scale, ly * scale, scale, scale);
-        }
-      }
-    }
-
     for (let ly = 0; ly < FRAME_H; ly++) {
       for (let lx = 0; lx < FRAME_W; lx++) {
         const c = getCellColor(lx, ly);
@@ -303,21 +250,14 @@ export function createStudioPanel(
         ctx.fillRect(lx * scale, ly * scale, scale, scale);
       }
     }
-
     ctx.strokeStyle = '#e9456088';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
   }
 
-  function prepareGridForExport(): string[] {
-    const copy = [...grid];
-    mergeAllSkinWithSkeleton(copy);
-    return copy;
-  }
-
   async function applyPreview(): Promise<void> {
     options.onDirectionChange?.(currentDirection);
-    const blob = await gridToPngBlob(prepareGridForExport());
+    const blob = await gridToPngBlob(grid);
     await options.onPreview(URL.createObjectURL(blob));
   }
 
@@ -329,7 +269,7 @@ export function createStudioPanel(
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = '保存中…';
-      const blob = await gridToPngBlob(prepareGridForExport());
+      const blob = await gridToPngBlob(grid);
       const file = new File([blob], 'spritesheet.png', { type: 'image/png' });
       await options.onSave(file);
       options.showToast('已保存到 Supabase，刷新后加载云端版本');
@@ -368,13 +308,11 @@ export function createStudioPanel(
 
   async function loadFromUrl(url: string): Promise<void> {
     grid = await loadGridFromImageUrl(url);
-    mergeAllSkinWithSkeleton(grid);
     resetArtHistory(history, grid);
     redraw();
   }
 
   redraw();
-  void applyPreview();
 
   if (options.initialImageUrl) {
     void loadFromUrl(options.initialImageUrl).catch(() => undefined);

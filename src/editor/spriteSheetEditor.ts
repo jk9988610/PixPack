@@ -1,12 +1,12 @@
-export const FRAME_W = 16;
-export const FRAME_H = 16;
-export const FRAMES_PER_DIRECTION = 10;
-export const DIRECTION_COUNT = 8;
+export const FRAME_W = 8;
+export const FRAME_H = 8;
+export const FRAMES_PER_DIRECTION = 2;
+export const DIRECTION_COUNT = 4;
 export const FRAME_COUNT = FRAMES_PER_DIRECTION;
 export const TOTAL_FRAME_COUNT = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
 export const SHEET_W = FRAME_W * FRAMES_PER_DIRECTION;
 export const SHEET_H = FRAME_H * DIRECTION_COUNT;
-export const CANVAS_ZOOM = 10;
+export const CANVAS_ZOOM = 16;
 
 export const PRESET_PALETTE = [
   'transparent',
@@ -81,18 +81,8 @@ export async function loadGridFromImageUrl(url: string): Promise<string[]> {
   if (!ctx) throw new Error('无法读取图片');
 
   ctx.clearRect(0, 0, SHEET_W, SHEET_H);
-
-  const isLegacyStrip = img.height <= FRAME_H * 1.5 && img.width >= FRAME_W * FRAMES_PER_DIRECTION;
-  if (isLegacyStrip) {
-    const dw = Math.min(SHEET_W, img.width);
-    const dh = Math.min(FRAME_H, img.height);
-    ctx.drawImage(img, 0, 0, dw, dh, 0, 6 * FRAME_H, dw, dh);
-  } else {
-    const scale = Math.min(SHEET_W / img.width, SHEET_H / img.height);
-    const dw = Math.min(SHEET_W, Math.round(img.width * scale));
-    const dh = Math.min(SHEET_H, Math.round(img.height * scale));
-    ctx.drawImage(img, 0, 0, dw, dh);
-  }
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, 0, 0, SHEET_W, SHEET_H);
 
   const data = ctx.getImageData(0, 0, SHEET_W, SHEET_H).data;
   const grid = createEmptyGrid();

@@ -6,110 +6,51 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outPath = join(__dirname, '../public/demo/spritesheet.png');
 
-const FRAME_W = 16;
-const FRAME_H = 16;
-const FRAMES_PER_DIRECTION = 10;
-const DIRECTION_COUNT = 8;
+const FRAME_W = 8;
+const FRAME_H = 8;
+const FRAMES_PER_DIRECTION = 2;
+const DIRECTION_COUNT = 4;
 const width = FRAME_W * FRAMES_PER_DIRECTION;
 const height = FRAME_H * DIRECTION_COUNT;
 
-const CHAR_TO_BONE = {
-  '.': null,
-  h: 'head',
-  b: 'body',
-  a: 'arm',
-  f: 'leg_f',
-  r: 'leg_b',
+const COLORS = {
+  '.': [0, 0, 0, 0],
+  h: [254, 202, 87, 255],
+  b: [233, 69, 96, 255],
+  f: [0, 102, 255, 255],
 };
 
-const DEFAULT_SKIN = {
-  head: [254, 202, 87, 255],
-  body: [233, 69, 96, 255],
-  arm: [254, 202, 87, 255],
-  leg_f: [0, 102, 255, 255],
-  leg_b: [0, 68, 187, 255],
-};
-
-const SIDE_TEMPLATES = [
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n....f...........\n...bb...b.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....f..r........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....r...........\n....f...........\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....f..r........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n....f...........\n...bb...b.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....r..f........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+/** 行: 南/北/东/西 · 列: idle/walk */
+const SHEET_TEMPLATES = [
+  [
+    `..hh....\n.hhhh...\n.bbbb...\n.bb.b...\n..f.....`,
+    `..hh....\n.hhhh...\n.bbbb...\n.bb.b...\n.f......`,
+  ],
+  [
+    `..bb....\n.bbbb...\n.bbbb...\n.bb.b...\n..f.....`,
+    `..bb....\n.bbbb...\n.bbbb...\n.bb.b...\n.f......`,
+  ],
+  [
+    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n...f....`,
+    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n..f.....`,
+  ],
+  [
+    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n....f...`,
+    `...hh...\n..hhhh..\n..bbbb..\n..bb.b..\n.....f..`,
+  ],
 ];
 
-const FRONT_TEMPLATES = [
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....f....r......\n....bb..bb......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....r....f......\n....bb..bb......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....ff..rr......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....f....r......\n....bb..bb......\n................\n................\n................\n................\n................\n................\n................\n................`,
-  `................\n.....hhhh.......\n....bbbbbb......\n....bbbbbb......\n.....bbbb.......\n....bb..bb......\n....r....f......\n....bb..bb......\n................\n................\n................\n................\n................\n................\n................\n................`,
-];
-
-const BACK_TEMPLATES = FRONT_TEMPLATES.map((t) => t.replace(/h/g, 'b').replace(/\.{5}hhhh/g, '.....bbbb'));
-
-const DIAG_SE_TEMPLATES = SIDE_TEMPLATES.map((tpl, i) => {
-  if (i < 4) return tpl;
-  return tpl.replace('....f...........', '.....f..........').replace('....r...........', '.....r..........');
-});
-
-function parseTemplate(text) {
-  const bones = [];
+function parseFrame(text) {
+  const pixels = [];
   for (const row of text.trim().split('\n')) {
-    for (const ch of row) {
-      bones.push(CHAR_TO_BONE[ch] ?? null);
+    for (const ch of row.padEnd(FRAME_W, '.').slice(0, FRAME_W)) {
+      pixels.push(COLORS[ch] ?? COLORS['.']);
     }
   }
-  return bones;
-}
-
-function flipHorizontal(bones) {
-  const out = [];
-  for (let y = 0; y < FRAME_H; y++) {
-    for (let x = FRAME_W - 1; x >= 0; x--) {
-      out.push(bones[y * FRAME_W + x] ?? null);
-    }
+  while (pixels.length < FRAME_W * FRAME_H) {
+    pixels.push(COLORS['.']);
   }
-  return out;
-}
-
-const SIDE_FRAMES = SIDE_TEMPLATES.map(parseTemplate);
-const FRONT_FRAMES = FRONT_TEMPLATES.map(parseTemplate);
-const BACK_FRAMES = BACK_TEMPLATES.map(parseTemplate);
-const DIAG_SE_FRAMES = DIAG_SE_TEMPLATES.map(parseTemplate);
-const DIAG_NE_FRAMES = DIAG_SE_FRAMES.map(flipHorizontal);
-
-function baseBonesForDirection(direction, frame) {
-  switch (direction) {
-    case 0:
-      return FRONT_FRAMES[frame] ?? [];
-    case 1:
-      return flipHorizontal(DIAG_SE_FRAMES[frame] ?? []);
-    case 2:
-      return flipHorizontal(SIDE_FRAMES[frame] ?? []);
-    case 3:
-      return flipHorizontal(DIAG_NE_FRAMES[frame] ?? []);
-    case 4:
-      return BACK_FRAMES[frame] ?? [];
-    case 5:
-      return DIAG_NE_FRAMES[frame] ?? [];
-    case 6:
-      return SIDE_FRAMES[frame] ?? [];
-    case 7:
-      return DIAG_SE_FRAMES[frame] ?? [];
-    default:
-      return [];
-  }
+  return pixels;
 }
 
 function crc32(data) {
@@ -137,10 +78,10 @@ for (let sheetY = 0; sheetY < height; sheetY++) {
   const direction = Math.floor(sheetY / FRAME_H);
   const localY = sheetY % FRAME_H;
   for (let sheetX = 0; sheetX < width; sheetX++) {
-    const frame = Math.floor(sheetX / FRAME_W);
+    const frameIndex = Math.floor(sheetX / FRAME_W);
     const localX = sheetX % FRAME_W;
-    const bone = baseBonesForDirection(direction, frame)?.[localY * FRAME_W + localX];
-    const rgba = bone ? DEFAULT_SKIN[bone] : [0, 0, 0, 0];
+    const pixels = parseFrame(SHEET_TEMPLATES[direction]?.[frameIndex] ?? '');
+    const rgba = pixels[localY * FRAME_W + localX] ?? COLORS['.'];
     const i = rowStart + 1 + sheetX * 4;
     raw[i] = rgba[0];
     raw[i + 1] = rgba[1];

@@ -59,7 +59,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
         </aside>
         <section class="stage-panel" data-preview-panel>
           <div class="canvas-wrap" data-canvas></div>
-          <div class="frame-info" data-frame-info>当前: idle · 东 · 帧 1/4</div>
+          <div class="frame-info" data-frame-info>当前: idle · 东 · 帧 1/1</div>
         </section>
         <section class="studio-panel hidden" data-studio-panel>
           <div data-studio-root></div>
@@ -140,16 +140,19 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
   }
 
   const directionPad = root.querySelector<HTMLElement>('[data-direction-pad]')!;
-  DIRECTION_IDS.forEach((id, index) => {
+  const padOrder = [1, 3, 2, 0] as const;
+  padOrder.forEach((index) => {
+    const id = DIRECTION_IDS[index]!;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `direction-pad-btn${index === 6 ? ' active' : ''}`;
+    btn.className = `direction-pad-btn${index === 2 ? ' active' : ''}`;
     btn.textContent = DIRECTION_LABELS[id];
     btn.title = id;
+    btn.dataset.direction = String(index);
     btn.addEventListener('click', () => {
       setDirection(index);
       directionPad.querySelectorAll('.direction-pad-btn').forEach((el) => {
-        el.classList.toggle('active', el === btn);
+        el.classList.toggle('active', (el as HTMLElement).dataset.direction === String(index));
       });
       studio.setDirection(index);
     });
