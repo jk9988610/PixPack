@@ -75,14 +75,33 @@ export async function deleteRepositoryItem(characterId: string): Promise<void> {
   if (fetchError) throw fetchError;
   if (!character) throw new Error('角色不存在');
 
-  const { data: asset, error: assetFetchError } = await supabase
-    .from('pack_assets')
-    .select('*')
-    .eq('id', character.sheet_asset_id as string)
-    .maybeSingle();
-  if (assetFetchError) throw assetFetchError;
+  const sheetAssetId = character.sheet_asset_id as string | null;
+  let storagePath: string | undefined;
 
-  const storagePath = asset?.storage_path as string | undefined;
+  if (sheetAssetId) {
+    const { data: asset, error: assetFetchError } = await supabase
+      .from('pack_assets')
+      .select('*')
+      .eq('id', sheetAssetId)
+      .maybeSingle();
+    if (assetFetchError) throw assetFetchError;
+    storagePath = asset?.storage_path as string | undefined;
+  }
+
+  // 必须先删 characters（FK → pack_assets），再删 pack_assets 与 Storage
+  const { error: charDeleteError } = await supabase
+    .from('characters')
+    .delete()
+    .eq('id', characterId);
+  if (charDeleteError) throw charDeleteError;
+
+  if (sheetAssetId) {
+    const { error: assetDeleteError } = await supabase
+      .from('pack_assets')
+      .delete()
+      .eq('id', sheetAssetId);
+    if (assetDeleteError) throw assetDeleteError;
+  }
 
   if (storagePath) {
     const { error: storageError } = await supabase.storage
@@ -90,20 +109,6 @@ export async function deleteRepositoryItem(characterId: string): Promise<void> {
       .remove([storagePath]);
     if (storageError) throw storageError;
   }
-
-  if (asset?.id) {
-    const { error: assetDeleteError } = await supabase
-      .from('pack_assets')
-      .delete()
-      .eq('id', asset.id as string);
-    if (assetDeleteError) throw assetDeleteError;
-  }
-
-  const { error: charDeleteError } = await supabase
-    .from('characters')
-    .delete()
-    .eq('id', characterId);
-  if (charDeleteError) throw charDeleteError;
 }
 
 export async function updateRepositoryItemName(characterId: string, name: string): Promise<void> {

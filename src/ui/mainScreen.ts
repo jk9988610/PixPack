@@ -155,12 +155,16 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     },
     onRename: options.onRename,
     onDelete: async (id) => {
-      await options.onDelete(id);
-      if (activeItem?.id === id) {
-        clearCharacter();
+      try {
+        await options.onDelete(id);
+        if (activeItem?.id === id) {
+          clearCharacter();
+        }
+        setRepositoryItems(await options.onRefreshRepository());
+        showToast('已删除');
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : '删除失败');
       }
-      setRepositoryItems(await options.onRefreshRepository());
-      showToast('已删除');
     },
     onCreate: () => startNewCharacter(),
   });
