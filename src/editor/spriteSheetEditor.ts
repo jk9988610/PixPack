@@ -1,8 +1,11 @@
 export const FRAME_W = 16;
 export const FRAME_H = 16;
-export const FRAME_COUNT = 10;
-export const SHEET_W = FRAME_W * FRAME_COUNT;
-export const SHEET_H = FRAME_H;
+export const FRAMES_PER_DIRECTION = 10;
+export const DIRECTION_COUNT = 8;
+export const FRAME_COUNT = FRAMES_PER_DIRECTION;
+export const TOTAL_FRAME_COUNT = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
+export const SHEET_W = FRAME_W * FRAMES_PER_DIRECTION;
+export const SHEET_H = FRAME_H * DIRECTION_COUNT;
 export const CANVAS_ZOOM = 10;
 
 export const PRESET_PALETTE = [
@@ -28,12 +31,16 @@ export function gridIndex(globalX: number, y: number): number {
   return y * SHEET_W + globalX;
 }
 
-export function frameOrigin(frame: number): number {
-  return frame * FRAME_W;
-}
-
-export function localToGlobal(frame: number, localX: number, localY: number): { x: number; y: number } {
-  return { x: frameOrigin(frame) + localX, y: localY };
+export function localToGlobal(
+  direction: number,
+  frame: number,
+  localX: number,
+  localY: number,
+): { x: number; y: number } {
+  return {
+    x: frame * FRAME_W + localX,
+    y: direction * FRAME_H + localY,
+  };
 }
 
 export async function gridToPngBlob(grid: string[]): Promise<Blob> {
@@ -74,10 +81,18 @@ export async function loadGridFromImageUrl(url: string): Promise<string[]> {
   if (!ctx) throw new Error('无法读取图片');
 
   ctx.clearRect(0, 0, SHEET_W, SHEET_H);
-  const scale = Math.min(SHEET_W / img.width, SHEET_H / img.height);
-  const dw = Math.min(SHEET_W, Math.round(img.width * scale));
-  const dh = Math.min(SHEET_H, Math.round(img.height * scale));
-  ctx.drawImage(img, 0, 0, dw, dh);
+
+  const isLegacyStrip = img.height <= FRAME_H * 1.5 && img.width >= FRAME_W * FRAMES_PER_DIRECTION;
+  if (isLegacyStrip) {
+    const dw = Math.min(SHEET_W, img.width);
+    const dh = Math.min(FRAME_H, img.height);
+    ctx.drawImage(img, 0, 0, dw, dh, 0, 6 * FRAME_H, dw, dh);
+  } else {
+    const scale = Math.min(SHEET_W / img.width, SHEET_H / img.height);
+    const dw = Math.min(SHEET_W, Math.round(img.width * scale));
+    const dh = Math.min(SHEET_H, Math.round(img.height * scale));
+    ctx.drawImage(img, 0, 0, dw, dh);
+  }
 
   const data = ctx.getImageData(0, 0, SHEET_W, SHEET_H).data;
   const grid = createEmptyGrid();

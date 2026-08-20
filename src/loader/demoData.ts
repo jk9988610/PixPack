@@ -1,16 +1,7 @@
 import type { CharacterMeta, ManifestPack } from '../types';
+import { buildEightDirectionMeta } from '../editor/directions';
 
-export const DEFAULT_CHARACTER_META: CharacterMeta = {
-  frameWidth: 16,
-  frameHeight: 16,
-  scale: 4,
-  filter: 'nearest',
-  animations: {
-    idle: { frames: [0, 1, 2, 3], fps: 4, loop: true },
-    walk: { frames: [4, 5, 6, 7, 8, 9], fps: 8, loop: true },
-  },
-  frames: Array.from({ length: 10 }, (_, i) => ({ x: i * 16, y: 0 })),
-};
+export const DEFAULT_CHARACTER_META: CharacterMeta = buildEightDirectionMeta();
 
 const DEMO_BOOTSTRAP: ManifestPack = {
   pack: {
@@ -45,7 +36,7 @@ const DEMO_PLAYER: ManifestPack = {
     priority: 10,
     version: 1,
     zone_id: null,
-    byte_size: 4096,
+    byte_size: 8192,
   },
   assets: [
     {
@@ -54,7 +45,7 @@ const DEMO_PLAYER: ManifestPack = {
       kind: 'spritesheet',
       storage_path: 'local/demo/spritesheet.png',
       public_url: `${import.meta.env.BASE_URL}demo/spritesheet.png`,
-      byte_size: 3840,
+      byte_size: 2048,
     },
   ],
   characters: [

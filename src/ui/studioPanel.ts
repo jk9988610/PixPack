@@ -1,4 +1,8 @@
 import {
+  DIRECTION_IDS,
+  DIRECTION_LABELS,
+} from '../editor/directions';
+import {
   createArtHistory,
   pushArtHistory,
   redoArtHistory,
@@ -17,9 +21,9 @@ import {
 } from '../editor/skeleton';
 import {
   CANVAS_ZOOM,
-  FRAME_COUNT,
   FRAME_H,
   FRAME_W,
+  FRAMES_PER_DIRECTION,
   PRESET_PALETTE,
   gridIndex,
   gridToPngBlob,
@@ -31,6 +35,7 @@ import {
 export interface StudioPanelOptions {
   initialImageUrl?: string;
   onPreview: (objectUrl: string) => Promise<void>;
+  onDirectionChange?: (direction: number) => void;
   onSave: (file: File) => Promise<void>;
   canSave: boolean;
   showToast: (msg: string) => void;
@@ -38,6 +43,7 @@ export interface StudioPanelOptions {
 
 export interface StudioPanelHandle {
   loadFromUrl(url: string): Promise<void>;
+  setDirection(direction: number): void;
 }
 
 export function createStudioPanel(
@@ -47,6 +53,10 @@ export function createStudioPanel(
   root.innerHTML = `
     <div class="studio-layout">
       <div class="studio-toolbar">
+        <div class="studio-group">
+          <span class="studio-label">朝向</span>
+          <div class="direction-tabs" data-direction-tabs></div>
+        </div>
         <div class="studio-group">
           <span class="studio-label">帧</span>
           <div class="frame-tabs" data-frame-tabs></div>
@@ -69,7 +79,7 @@ export function createStudioPanel(
       </div>
       <div class="studio-canvas-wrap">
         <canvas width="${FRAME_W * CANVAS_ZOOM}" height="${FRAME_H * CANVAS_ZOOM}" data-pixel-canvas class="pixel-canvas"></canvas>
-        <p class="studio-hint">16×16 单帧 · 骨骼蒙皮 · 放大 ${CANVAS_ZOOM}× · idle 0–3 · walk 4–9</p>
+        <p class="studio-hint">16×16 · 8 朝向 · 骨骼蒙皮 · 放大 ${CANVAS_ZOOM}× · idle 0–3 · walk 4–9</p>
       </div>
       <div class="studio-actions">
         <button type="button" class="btn btn-ghost" data-apply-preview>应用到预览</button>
@@ -80,6 +90,7 @@ export function createStudioPanel(
 
   const canvas = root.querySelector<HTMLCanvasElement>('[data-pixel-canvas]')!;
   const ctx = canvas.getContext('2d')!;
+  const directionTabs = root.querySelector<HTMLElement>('[data-direction-tabs]')!;
   const frameTabs = root.querySelector<HTMLElement>('[data-frame-tabs]')!;
   const boneTabs = root.querySelector<HTMLElement>('[data-bone-tabs]')!;
   const paletteEl = root.querySelector<HTMLElement>('[data-palette]')!;
@@ -90,6 +101,7 @@ export function createStudioPanel(
   const history = createArtHistory();
   resetArtHistory(history, grid);
 
+  let currentDirection = 6;
   let currentFrame = 0;
   let tool: Tool = 'brush';
   let color = colorInput.value;
@@ -97,7 +109,18 @@ export function createStudioPanel(
   let strokeDirty = false;
   let previewTimer: number | undefined;
 
-  for (let i = 0; i < FRAME_COUNT; i++) {
+  DIRECTION_IDS.forEach((id, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `direction-tab${index === currentDirection ? ' active' : ''}`;
+    btn.textContent = DIRECTION_LABELS[id];
+    btn.title = id;
+    btn.dataset.direction = String(index);
+    btn.addEventListener('click', () => selectDirection(index));
+    directionTabs.appendChild(btn);
+  });
+
+  for (let i = 0; i < FRAMES_PER_DIRECTION; i++) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `frame-tab${i === 0 ? ' active' : ''}`;
@@ -177,6 +200,15 @@ export function createStudioPanel(
     });
   }
 
+  function selectDirection(index: number): void {
+    currentDirection = index;
+    directionTabs.querySelectorAll('.direction-tab').forEach((el) => {
+      el.classList.toggle('active', (el as HTMLElement).dataset.direction === String(index));
+    });
+    options.onDirectionChange?.(index);
+    redraw();
+  }
+
   function selectFrame(index: number): void {
     currentFrame = index;
     frameTabs.querySelectorAll('.frame-tab').forEach((el, i) => {
@@ -194,25 +226,25 @@ export function createStudioPanel(
   }
 
   function getCellColor(lx: number, ly: number): string {
-    const { x, y } = localToGlobal(currentFrame, lx, ly);
+    const { x, y } = localToGlobal(currentDirection, currentFrame, lx, ly);
     return grid[gridIndex(x, y)] ?? 'transparent';
   }
 
   function setCellColor(lx: number, ly: number, value: string): void {
-    if (!isPaintable(currentFrame, lx, ly)) return;
-    const { x, y } = localToGlobal(currentFrame, lx, ly);
+    if (!isPaintable(currentDirection, currentFrame, lx, ly)) return;
+    const { x, y } = localToGlobal(currentDirection, currentFrame, lx, ly);
     grid[gridIndex(x, y)] = value;
   }
 
   function fillBone(bone: BoneId): void {
-    fillBoneOnFrame(grid, currentFrame, bone, color);
+    fillBoneOnFrame(grid, currentDirection, currentFrame, bone, color);
     pushArtHistory(history, grid);
     redraw();
     schedulePreview();
   }
 
   function applyTool(lx: number, ly: number): void {
-    if (!isPaintable(currentFrame, lx, ly)) return;
+    if (!isPaintable(currentDirection, currentFrame, lx, ly)) return;
 
     if (tool === 'picker') {
       const picked = getCellColor(lx, ly);
@@ -223,7 +255,9 @@ export function createStudioPanel(
       return;
     }
     if (tool === 'fill') {
-      if (floodFillBone(grid, currentFrame, lx, ly, color)) strokeDirty = true;
+      if (floodFillBone(grid, currentDirection, currentFrame, lx, ly, color)) {
+        strokeDirty = true;
+      }
       redraw();
       return;
     }
@@ -253,7 +287,7 @@ export function createStudioPanel(
 
     for (let ly = 0; ly < FRAME_H; ly++) {
       for (let lx = 0; lx < FRAME_W; lx++) {
-        const guide = getSkeletonGuideColor(currentFrame, lx, ly);
+        const guide = getSkeletonGuideColor(currentDirection, currentFrame, lx, ly);
         if (guide) {
           ctx.fillStyle = guide;
           ctx.fillRect(lx * scale, ly * scale, scale, scale);
@@ -282,6 +316,7 @@ export function createStudioPanel(
   }
 
   async function applyPreview(): Promise<void> {
+    options.onDirectionChange?.(currentDirection);
     const blob = await gridToPngBlob(prepareGridForExport());
     await options.onPreview(URL.createObjectURL(blob));
   }
@@ -345,5 +380,10 @@ export function createStudioPanel(
     void loadFromUrl(options.initialImageUrl).catch(() => undefined);
   }
 
-  return { loadFromUrl };
+  return {
+    loadFromUrl,
+    setDirection(direction: number) {
+      selectDirection(direction);
+    },
+  };
 }
