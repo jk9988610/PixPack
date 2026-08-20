@@ -23,11 +23,13 @@ npm run dev
 
 ## Supabase 初始化
 
-1. 创建项目 → SQL Editor 执行 [`supabase/schema.sql`](supabase/schema.sql)
-2. Storage → 新建 bucket **`pixpack-assets`**（Public）
-3. Storage Policies：`authenticated` 可 upload/update；`public` 可读
-4. Auth → 启用 Email Magic Link
-5. 上传初始精灵图到 `assets/packs/player/v1/spritesheet.png`，执行 [`supabase/seed-player.sql`](supabase/seed-player.sql)（替换 URL），或在应用内登录后上传
+完整步骤见 **[docs/SUPABASE.md](docs/SUPABASE.md)**（对照 Card-World 顺序）。
+
+1. Storage → bucket **`pixpack-assets`**（Public）
+2. SQL Editor → [`supabase/schema-pixpack.sql`](supabase/schema-pixpack.sql)
+3. SQL Editor → [`supabase/schema-pixpack-storage-policies.sql`](supabase/schema-pixpack-storage-policies.sql)
+4. 上传初始精灵图或登录网页后上传；可选 [`supabase/seed-player.sql`](supabase/seed-player.sql)
+5. Auth → Email Magic Link；GitHub Secrets 注入 URL / anon key
 
 ## GitHub Secrets
 
