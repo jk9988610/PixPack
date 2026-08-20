@@ -22,7 +22,7 @@ const headers = {
   Authorization: `Bearer ${ANON}`,
 };
 
-const FRAME_W = 8;
+const FRAME_W = 9;
 const FRAMES_PER_DIRECTION = 2;
 const DIRECTION_COUNT = 4;
 const TOTAL_FRAMES = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
@@ -53,7 +53,7 @@ async function main() {
   const meta = {
     frameWidth: FRAME_W,
     frameHeight: FRAME_W,
-    scale: 6,
+    scale: 5,
     filter: 'nearest',
     directions: ['s', 'n', 'e', 'w'],
     framesPerDirection: FRAMES_PER_DIRECTION,

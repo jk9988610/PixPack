@@ -43,7 +43,7 @@ export function isDirectionalMeta(meta: CharacterMeta): boolean {
   return Boolean(meta.directions?.length) && meta.frames.length > FRAMES_PER_DIRECTION;
 }
 
-export function buildCharacterMeta(frameWidth = 8, frameHeight = 8, scale = 6): CharacterMeta {
+export function buildCharacterMeta(frameWidth = 9, frameHeight = 9, scale = 5): CharacterMeta {
   const animations: Record<string, AnimationDef> = {
     idle: { frames: [IDLE_FRAME], fps: 2, loop: true },
     walk: { frames: [WALK_FRAME], fps: 4, loop: true },

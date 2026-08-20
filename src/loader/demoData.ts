@@ -27,48 +27,12 @@ const DEMO_BOOTSTRAP: ManifestPack = {
   characters: [],
 };
 
-const DEMO_PLAYER: ManifestPack = {
-  pack: {
-    id: 'demo-player',
-    slug: 'player',
-    name: 'Player',
-    category: 'player',
-    priority: 10,
-    version: 1,
-    zone_id: null,
-    byte_size: 512,
-  },
-  assets: [
-    {
-      id: 'demo-player-sheet',
-      pack_id: 'demo-player',
-      kind: 'spritesheet',
-      storage_path: 'local/demo/spritesheet.png',
-      public_url: `${import.meta.env.BASE_URL}demo/spritesheet.png`,
-      byte_size: 128,
-    },
-  ],
-  characters: [
-    {
-      id: 'demo-character',
-      pack_id: 'demo-player',
-      name: '默认',
-      role: 'player',
-      meta_json: DEFAULT_CHARACTER_META,
-      sheet_asset_id: 'demo-player-sheet',
-    },
-  ],
-};
-
 const DEMO_MAP: Record<string, ManifestPack> = {
   bootstrap: DEMO_BOOTSTRAP,
-  player: DEMO_PLAYER,
 };
 
 export function getDemoManifest(slugs: string[]): ManifestPack[] {
-  return slugs.map((slug) => {
-    const pack = DEMO_MAP[slug];
-    if (!pack) throw new Error(`Demo 模式未定义资源包：${slug}`);
-    return pack;
-  });
+  return slugs
+    .map((slug) => DEMO_MAP[slug])
+    .filter((pack): pack is ManifestPack => Boolean(pack));
 }

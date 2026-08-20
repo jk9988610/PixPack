@@ -18,7 +18,7 @@ node scripts/generate-demo-spritesheet.mjs
 npm run dev
 ```
 
-**画室**：8×8 像素 · 4 朝向（南/北 + 东/西侧）· 2 帧（idle/walk）→ 保存到 Supabase。
+**画室**：9×9 像素 · 4 朝向（南/北/东/西）· 2 帧 · 东/西自动对称。素材从 **仓库** 加载，无默认精灵。
 
 ## Supabase 初始化
 
