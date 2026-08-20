@@ -1,18 +1,5 @@
--- =============================================================================
--- PixPack — 完整初始化（Supabase SQL Editor · 一次粘贴执行）
--- =============================================================================
--- 包含：建桶 → 建表 → 公开 RLS → Storage 策略 → 初始 pack 行
--- 完全公开（anon 可读写），对照 Card-World
---
--- 执行后：
---   1) GitHub Secrets 填入 VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
---   2) 打开 https://jk9988610.github.io/PixPack/ 直接上传保存（无需登录）
---   3) 可选：上传 spritesheet 到 Storage 后执行文末 seed-player 段（替换 YOUR_PROJECT_REF）
--- =============================================================================
-
--- =============================================================================
--- 1) Storage Bucket
--- =============================================================================
+-- PixPack 完整初始化（Supabase SQL Editor：全选本文件 → Run）
+-- 第一行必须是 insert，不能是 assets 或其他文字
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -27,10 +14,6 @@ on conflict (id) do update set
   name = excluded.name,
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
-
--- =============================================================================
--- 2) Tables
--- =============================================================================
 
 create extension if not exists "pgcrypto";
 
@@ -72,10 +55,6 @@ create index if not exists asset_packs_slug_idx on public.asset_packs (slug);
 create index if not exists asset_packs_priority_idx on public.asset_packs (priority);
 create index if not exists pack_assets_pack_id_idx on public.pack_assets (pack_id);
 create index if not exists characters_pack_id_idx on public.characters (pack_id);
-
--- =============================================================================
--- 3) Table RLS（完全公开）
--- =============================================================================
 
 alter table public.asset_packs enable row level security;
 alter table public.pack_assets enable row level security;
@@ -123,10 +102,6 @@ grant select, insert, update, delete on public.asset_packs to anon, authenticate
 grant select, insert, update, delete on public.pack_assets to anon, authenticated;
 grant select, insert, update, delete on public.characters to anon, authenticated;
 
--- =============================================================================
--- 4) Storage RLS（完全公开）
--- =============================================================================
-
 drop policy if exists "pixpack_assets_auth_insert" on storage.objects;
 drop policy if exists "pixpack_assets_auth_update" on storage.objects;
 drop policy if exists "pixpack_assets_auth_delete" on storage.objects;
@@ -151,45 +126,11 @@ create policy "pixpack_assets_anon_delete"
   on storage.objects for delete
   using (bucket_id = 'pixpack-assets');
 
--- =============================================================================
--- 5) Seed：bootstrap + player pack 行
--- =============================================================================
-
 insert into public.asset_packs (slug, name, category, priority, version, byte_size)
 values
   ('bootstrap', 'Bootstrap', 'bootstrap', 0, 1, 256),
   ('player', 'Player', 'player', 10, 1, 4096)
 on conflict (slug) do nothing;
 
--- =============================================================================
--- 6) 验证
--- =============================================================================
-
 select id, name, public from storage.buckets where id = 'pixpack-assets';
 select slug, name, category, version from public.asset_packs order by priority;
-
--- =============================================================================
--- 7) 可选：初始 player 角色（需先上传 PNG 到 Storage）
--- =============================================================================
--- 路径：pixpack-assets / assets/packs/player/v1/spritesheet.png
--- 将 YOUR_PROJECT_REF 换成 Project Settings → General → Reference ID
--- 取消下方注释后单独选中执行：
---
--- delete from public.characters where pack_id in (select id from public.asset_packs where slug = 'player');
--- delete from public.pack_assets where pack_id in (select id from public.asset_packs where slug = 'player');
---
--- with player as (select id from public.asset_packs where slug = 'player'),
--- asset as (
---   insert into public.pack_assets (pack_id, kind, storage_path, public_url, byte_size)
---   select player.id, 'spritesheet',
---     'assets/packs/player/v1/spritesheet.png',
---     'https://YOUR_PROJECT_REF.supabase.co/storage/v1/object/public/pixpack-assets/assets/packs/player/v1/spritesheet.png?v=1',
---     4096
---   from player returning id, pack_id
--- )
--- insert into public.characters (pack_id, name, role, meta_json, sheet_asset_id)
--- select asset.pack_id, '默认', 'player',
---   '{"frameWidth":32,"frameHeight":32,"scale":3,"filter":"nearest",
---     "animations":{"idle":{"frames":[0,1,2,3],"fps":4,"loop":true},"walk":{"frames":[4,5,6,7,8,9],"fps":8,"loop":true}},
---     "frames":[{"x":0,"y":0},{"x":32,"y":0},{"x":64,"y":0},{"x":96,"y":0},{"x":128,"y":0},{"x":160,"y":0},{"x":192,"y":0},{"x":224,"y":0},{"x":256,"y":0},{"x":288,"y":0}]}'::jsonb,
---   asset.id from asset;
