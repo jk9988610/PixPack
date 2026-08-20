@@ -16,9 +16,11 @@
 | 6 | Auth | 启用 **Email Magic Link**；Site URL 填 `https://jk9988610.github.io/PixPack/` |
 | 7 | GitHub Secrets | `VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY` |
 
-### 仅建桶（新版 Dashboard 找不到 New bucket 时）
+### 推荐：一次执行完整脚本
 
-在 SQL Editor 粘贴运行 [`schema-pixpack-bucket.sql`](../supabase/schema-pixpack-bucket.sql) 即可。
+[`supabase/schema-pixpack-full.sql`](../supabase/schema-pixpack-full.sql) — **从建 bucket 到表 + RLS + Storage 策略 + 初始 pack**，粘贴到 SQL Editor 一次 Run 即可。
+
+### 分步执行（可选）
 
 ## 也可跳过步骤 4–5
 
