@@ -8,6 +8,7 @@ export interface MainScreenOptions {
   onSave: (payload: { file: File; meta: CharacterMeta; characterId?: string }) => Promise<void>;
   isConfigured: boolean;
   isSignedIn: boolean;
+  placeholderPreview?: boolean;
 }
 
 export interface MainScreenHandle {
@@ -34,7 +35,8 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
         <aside class="sidebar">
           <h2>资源包</h2>
           <ul class="pack-list"><li class="active">▶ player</li></ul>
-          <h3>角色</h3><p>默认</p>
+          <h3>角色</h3>
+          <p data-role-name>${options.placeholderPreview ? '（预览占位，请上传保存）' : '默认'}</p>
           <h3>动作</h3>
           <label class="radio"><input type="radio" name="anim" value="idle" checked /> idle</label>
           <label class="radio"><input type="radio" name="anim" value="walk" /> walk</label>

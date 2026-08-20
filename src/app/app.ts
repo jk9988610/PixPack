@@ -12,6 +12,7 @@ import {
   signOut,
 } from '../supabase/client';
 import { saveCharacterSheet } from '../supabase/upload';
+import { isPlaceholderCharacter } from '../supabase/manifest';
 import { createLoadingScreen } from '../ui/loadingScreen';
 import { createMainScreen } from '../ui/mainScreen';
 import type { CharacterMeta } from '../types';
@@ -30,9 +31,16 @@ export async function startApp(root: HTMLElement): Promise<void> {
       const result = await loadPacks(['bootstrap', 'player'], (p) => loading.update(p));
       loading.hide();
 
+      const playerPack = findPlayerPack(result.packs);
+      if (!playerPack) throw new Error('player 资源包未加载');
+
+      const characterId = playerPack.manifest.characters[0]?.id ?? null;
+      const placeholderPreview = isPlaceholderCharacter(characterId ?? undefined);
+
       const main = createMainScreen(root, {
         isConfigured: isSupabaseConfigured(),
         isSignedIn: signedIn,
+        placeholderPreview,
         onSignIn: signInWithEmail,
         onSignOut: async () => {
           await signOut();
@@ -42,20 +50,22 @@ export async function startApp(root: HTMLElement): Promise<void> {
           await saveCharacterSheet({
             file: payload.file,
             meta: payload.meta,
-            characterId: payload.characterId,
+            characterId: placeholderPreview ? undefined : payload.characterId,
             packSlug: 'player',
             name: '默认',
           });
+          main.showToast('保存成功，刷新页面后加载云端角色');
         },
       });
-
-      const playerPack = findPlayerPack(result.packs);
-      if (!playerPack) throw new Error('player 资源包未加载');
 
       const player = new SpritePlayer(main.getCanvasMount());
       await player.init();
       await player.loadFromPack(playerPack);
       main.bindPlayer(player);
+
+      if (placeholderPreview && isSupabaseConfigured()) {
+        main.showToast('暂无云端角色，可预览占位动画；上传 PNG 后点保存');
+      }
 
       prefetchPacks([]);
       main.setPrefetchStatus('');
