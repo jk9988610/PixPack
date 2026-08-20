@@ -1,7 +1,7 @@
 -- =============================================================================
--- PixPack — Storage 策略（Supabase SQL Editor · 文件 2/2）
+-- PixPack — Storage 策略（Supabase SQL Editor · 文件 2/3）
 -- =============================================================================
--- 前提：已创建 Public bucket，名称 pixpack-assets
+-- 前提：已通过 SQL 创建 Public bucket pixpack-assets（见 schema-pixpack-bucket.sql）
 -- 对照 Card-World：supabase/schema-art-storage-policies.sql
 -- =============================================================================
 

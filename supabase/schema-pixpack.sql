@@ -1,16 +1,31 @@
 -- =============================================================================
--- PixPack — 素材工坊（Supabase SQL Editor · 文件 1/2）
+-- PixPack — 素材工坊（Supabase SQL Editor · 文件 1/3）
 -- =============================================================================
 -- 可与 Card-World / HarmonyForge 共用同一 Supabase 项目（URL / anon key 相同，桶名不同）。
 --
--- BEFORE SQL（Dashboard 手动）：
---   Storage → New bucket → Name: pixpack-assets → Public bucket: ON
---
--- RUN ORDER：
---   1) 本文件（表 + 索引 + RLS + 初始 pack 行）
+-- RUN ORDER（全部在 SQL Editor 完成，无需 Dashboard 点 New bucket）：
+--   1) 本文件（建桶 + 表 + 索引 + RLS + 初始 pack 行）
 --   2) supabase/schema-pixpack-storage-policies.sql
 --   3) 上传初始 spritesheet 后执行 supabase/seed-player.sql（替换 YOUR_PROJECT_REF）
 -- =============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket（SQL 直接创建，替代 Dashboard → New bucket）
+-- ---------------------------------------------------------------------------
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'pixpack-assets',
+  'pixpack-assets',
+  true,
+  52428800,
+  array['image/png', 'image/jpeg', 'image/webp', 'application/json']::text[]
+)
+on conflict (id) do update set
+  public = true,
+  name = excluded.name,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 create extension if not exists "pgcrypto";
 
