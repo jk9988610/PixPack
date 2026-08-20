@@ -1,6 +1,9 @@
 import type { CharacterMeta } from '../types';
 import { DEFAULT_CHARACTER_META } from '../loader/demoData';
 import type { SpritePlayer } from '../pixi/spritePlayer';
+import { createStudioPanel, type StudioPanelHandle } from './studioPanel';
+
+export type MainView = 'preview' | 'studio';
 
 export interface MainScreenOptions {
   onSignIn: (email: string) => Promise<string>;
@@ -9,6 +12,7 @@ export interface MainScreenOptions {
   isConfigured: boolean;
   isSignedIn: boolean;
   placeholderPreview?: boolean;
+  initialSheetUrl?: string;
 }
 
 export interface MainScreenHandle {
@@ -18,6 +22,7 @@ export interface MainScreenHandle {
   setSignedIn(signedIn: boolean): void;
   showToast(message: string): void;
   setPrefetchStatus(text: string): void;
+  switchView(view: MainView): void;
 }
 
 export function createMainScreen(root: HTMLElement, options: MainScreenOptions): MainScreenHandle {
@@ -33,77 +38,103 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
       </header>
       <div class="main-body">
         <aside class="sidebar">
+          <h2>视图</h2>
+          <div class="view-tabs">
+            <button type="button" class="view-tab active" data-view="preview">预览</button>
+            <button type="button" class="view-tab" data-view="studio">画室</button>
+          </div>
           <h2>资源包</h2>
           <ul class="pack-list"><li class="active">▶ player</li></ul>
           <h3>角色</h3>
-          <p data-role-name>${options.placeholderPreview ? '（预览占位，请上传保存）' : '默认'}</p>
-          <h3>动作</h3>
-          <label class="radio"><input type="radio" name="anim" value="idle" checked /> idle</label>
-          <label class="radio"><input type="radio" name="anim" value="walk" /> walk</label>
+          <p data-role-name>${options.placeholderPreview ? '（预览占位，请保存）' : '默认'}</p>
+          <div data-preview-only>
+            <h3>动作</h3>
+            <label class="radio"><input type="radio" name="anim" value="idle" checked /> idle</label>
+            <label class="radio"><input type="radio" name="anim" value="walk" /> walk</label>
+          </div>
         </aside>
-        <section class="stage-panel">
+        <section class="stage-panel" data-preview-panel>
           <div class="canvas-wrap" data-canvas></div>
           <div class="frame-info" data-frame-info>当前: idle  帧 1/4</div>
         </section>
+        <section class="studio-panel hidden" data-studio-panel>
+          <div data-studio-root></div>
+        </section>
       </div>
-      <footer class="upload-bar">
-        <label class="file-label">上传精灵图<input type="file" accept="image/png" data-file hidden /></label>
-        <span class="meta-fields">帧宽 <input type="number" value="32" min="8" max="128" data-fw /> 高 <input type="number" value="32" min="8" max="128" data-fh /></span>
-        <button class="btn btn-primary" data-save disabled>保存到 Supabase</button>
+      <footer class="upload-bar" data-preview-footer>
+        <span class="upload-hint">也可在「画室」绘制并一键保存</span>
+        <label class="file-label">上传 PNG<input type="file" accept="image/png" data-file hidden /></label>
+        <button class="btn btn-primary" data-save-file disabled>保存文件</button>
       </footer>
-      <dialog class="auth-dialog" data-auth-dialog>
-        <form data-auth-form>
-          <h3>邮箱 Magic Link 登录</h3>
-          <input type="email" required placeholder="your@email.com" data-email />
-          <div class="dialog-actions">
-            <button type="button" class="btn btn-ghost" data-auth-cancel>取消</button>
-            <button type="submit" class="btn btn-primary">发送链接</button>
-          </div>
-          <p class="hint" data-auth-hint></p>
-        </form>
-      </dialog>
-      <div class="toast hidden" data-toast></div>
     </div>
+    <dialog class="auth-dialog" data-auth-dialog>
+      <form data-auth-form>
+        <h3>邮箱 Magic Link 登录</h3>
+        <input type="email" required placeholder="your@email.com" data-email />
+        <div class="dialog-actions">
+          <button type="button" class="btn btn-ghost" data-auth-cancel>取消</button>
+          <button type="submit" class="btn btn-primary">发送链接</button>
+        </div>
+        <p class="hint" data-auth-hint></p>
+      </form>
+    </dialog>
+    <div class="toast hidden" data-toast></div>
   `;
 
   const canvasWrap = root.querySelector<HTMLElement>('[data-canvas]')!;
   const frameInfo = root.querySelector<HTMLElement>('[data-frame-info]')!;
+  const previewPanel = root.querySelector<HTMLElement>('[data-preview-panel]')!;
+  const studioPanel = root.querySelector<HTMLElement>('[data-studio-panel]')!;
+  const previewFooter = root.querySelector<HTMLElement>('[data-preview-footer]')!;
+  const studioRoot = root.querySelector<HTMLElement>('[data-studio-root]')!;
   const authBtn = root.querySelector<HTMLButtonElement>('[data-auth-btn]')!;
   const authDialog = root.querySelector<HTMLDialogElement>('[data-auth-dialog]')!;
   const authForm = root.querySelector<HTMLFormElement>('[data-auth-form]')!;
   const authHint = root.querySelector<HTMLElement>('[data-auth-hint]')!;
-  const saveBtn = root.querySelector<HTMLButtonElement>('[data-save]')!;
+  const saveFileBtn = root.querySelector<HTMLButtonElement>('[data-save-file]')!;
   const fileInput = root.querySelector<HTMLInputElement>('[data-file]')!;
   const prefetchEl = root.querySelector<HTMLElement>('[data-prefetch]')!;
   const configBadge = root.querySelector<HTMLElement>('[data-config-badge]')!;
   const toastEl = root.querySelector<HTMLElement>('[data-toast]')!;
 
-  configBadge.textContent = options.isConfigured
-    ? 'Supabase 已连接'
-    : 'Supabase 未连接';
+  configBadge.textContent = options.isConfigured ? 'Supabase 已连接' : 'Supabase 未连接';
 
   let playerRef: SpritePlayer | null = null;
   let pendingFile: File | null = null;
   let signedIn = options.isSignedIn;
   let rafId = 0;
+  let currentView: MainView = 'preview';
+
+  const studio: StudioPanelHandle = createStudioPanel(studioRoot, {
+    initialImageUrl: options.initialSheetUrl,
+    canSave: options.isConfigured,
+    showToast,
+    onPreview: async (objectUrl) => {
+      if (!playerRef) return;
+      await playerRef.hotReload(objectUrl, buildMeta());
+    },
+    onSave: async (file) => {
+      await options.onSave({ file, meta: buildMeta() });
+      pendingFile = file;
+    },
+  });
 
   function buildMeta(): CharacterMeta {
-    const fw = Number(root.querySelector<HTMLInputElement>('[data-fw]')!.value);
-    const fh = Number(root.querySelector<HTMLInputElement>('[data-fh]')!.value);
-    return {
-      ...DEFAULT_CHARACTER_META,
-      frameWidth: fw,
-      frameHeight: fh,
-      frames: DEFAULT_CHARACTER_META.frames.map((_, i) => ({ x: i * fw, y: 0 })),
-    };
+    return { ...DEFAULT_CHARACTER_META };
   }
 
   function updateFrameInfo(): void {
-    if (!playerRef) return;
+    if (!playerRef || currentView !== 'preview') return;
     const { index, total } = playerRef.getFrameInfo();
     frameInfo.textContent = `当前: ${playerRef.getAnimation()}  帧 ${index + 1}/${total}`;
     rafId = requestAnimationFrame(updateFrameInfo);
   }
+
+  root.querySelectorAll<HTMLButtonElement>('.view-tab').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      switchView(btn.dataset.view as MainView);
+    });
+  });
 
   root.querySelectorAll<HTMLInputElement>('input[name="anim"]').forEach((input) => {
     input.addEventListener('change', () => {
@@ -135,23 +166,24 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     if (!file || !playerRef) return;
     pendingFile = file;
     await playerRef.hotReload(URL.createObjectURL(file), buildMeta());
-    saveBtn.disabled = !options.isConfigured;
-    showToast('已本地预览新精灵图，可直接保存');
+    saveFileBtn.disabled = !options.isConfigured;
+    void studio.loadFromUrl(URL.createObjectURL(file));
+    showToast('已加载到预览与画室');
   });
 
-  saveBtn.addEventListener('click', async () => {
+  saveFileBtn.addEventListener('click', async () => {
     if (!pendingFile) {
-      showToast('请先选择 PNG 文件');
+      showToast('请先选择 PNG');
       return;
     }
     try {
-      saveBtn.disabled = true;
+      saveFileBtn.disabled = true;
       await options.onSave({ file: pendingFile, meta: buildMeta() });
       showToast('保存成功');
     } catch (error) {
       showToast(error instanceof Error ? error.message : '保存失败');
     } finally {
-      saveBtn.disabled = !options.isConfigured || !pendingFile;
+      saveFileBtn.disabled = !options.isConfigured || !pendingFile;
     }
   });
 
@@ -167,6 +199,17 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     playerRef?.setAnimation(name);
   }
 
+  function switchView(view: MainView): void {
+    currentView = view;
+    root.querySelectorAll('.view-tab').forEach((el) => {
+      el.classList.toggle('active', (el as HTMLElement).dataset.view === view);
+    });
+    previewPanel.classList.toggle('hidden', view !== 'preview');
+    studioPanel.classList.toggle('hidden', view !== 'studio');
+    previewFooter.classList.toggle('hidden', view !== 'preview');
+    if (view === 'preview') updateFrameInfo();
+  }
+
   return {
     getCanvasMount: () => canvasWrap,
     setAnimation,
@@ -178,7 +221,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     setSignedIn(value) {
       signedIn = value;
       authBtn.textContent = value ? '退出' : '登录';
-      saveBtn.disabled = !options.isConfigured || !pendingFile;
+      saveFileBtn.disabled = !options.isConfigured || !pendingFile;
     },
     showToast,
     setPrefetchStatus(text) {
@@ -189,5 +232,6 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
       prefetchEl.textContent = text;
       prefetchEl.classList.remove('hidden');
     },
+    switchView,
   };
 }
