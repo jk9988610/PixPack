@@ -36,11 +36,16 @@ export async function startApp(root: HTMLElement): Promise<void> {
 
       const characterId = playerPack.manifest.characters[0]?.id ?? null;
       const placeholderPreview = isPlaceholderCharacter(characterId ?? undefined);
+      const sheetAsset = playerPack.assets.find(
+        (a) => a.asset.kind === 'spritesheet' || a.asset.id === playerPack.manifest.characters[0]?.sheet_asset_id,
+      );
+      const initialSheetUrl = sheetAsset?.objectUrl;
 
       const main = createMainScreen(root, {
         isConfigured: isSupabaseConfigured(),
         isSignedIn: signedIn,
         placeholderPreview,
+        initialSheetUrl,
         onSignIn: signInWithEmail,
         onSignOut: async () => {
           await signOut();
@@ -64,7 +69,9 @@ export async function startApp(root: HTMLElement): Promise<void> {
       main.bindPlayer(player);
 
       if (placeholderPreview && isSupabaseConfigured()) {
-        main.showToast('暂无云端角色，可预览占位动画；上传 PNG 后点保存');
+        main.showToast('可进入「画室」绘制角色，画完点保存');
+      } else {
+        main.showToast('左侧「画室」可绘制精灵并保存到 Supabase');
       }
 
       prefetchPacks([]);
