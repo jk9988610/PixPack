@@ -1,4 +1,5 @@
 import { getSupabase } from './client';
+import { PIXPACK_ASSETS_BUCKET } from './cloud-config';
 import type { CharacterMeta } from '../types';
 
 export interface SaveCharacterInput {
@@ -23,7 +24,7 @@ export async function saveCharacterSheet(input: SaveCharacterInput): Promise<voi
   const storagePath = `assets/packs/${input.packSlug}/v${nextVersion}/spritesheet.png`;
 
   const { error: uploadError } = await supabase.storage
-    .from('pixpack-assets')
+    .from(PIXPACK_ASSETS_BUCKET)
     .upload(storagePath, input.file, {
       upsert: true,
       contentType: 'image/png',
@@ -31,7 +32,7 @@ export async function saveCharacterSheet(input: SaveCharacterInput): Promise<voi
   if (uploadError) throw uploadError;
 
   const { data: publicUrlData } = supabase.storage
-    .from('pixpack-assets')
+    .from(PIXPACK_ASSETS_BUCKET)
     .getPublicUrl(storagePath);
   const publicUrl = `${publicUrlData.publicUrl}?v=${nextVersion}`;
 

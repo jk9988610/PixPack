@@ -6,7 +6,7 @@
 --   2) 已在 Storage 上传：
 --        bucket: pixpack-assets
 --        path:   assets/packs/player/v1/spritesheet.png
---   3) 将下方 YOUR_PROJECT_REF 替换为你的 Supabase 项目 ref（Project Settings → General）
+--   3) 将 YOUR_PROJECT_REF 替换为 yjqkotqmglxjhlrhynsu（与 Card-World 同项目）
 -- =============================================================================
 
 -- 删除旧 demo 行（可重复执行）
@@ -22,7 +22,7 @@ asset as (
     player.id,
     'spritesheet',
     'assets/packs/player/v1/spritesheet.png',
-    'https://YOUR_PROJECT_REF.supabase.co/storage/v1/object/public/pixpack-assets/assets/packs/player/v1/spritesheet.png?v=1',
+    'https://yjqkotqmglxjhlrhynsu.supabase.co/storage/v1/object/public/pixpack-assets/assets/packs/player/v1/spritesheet.png?v=1',
     4096
   from player
   returning id, pack_id

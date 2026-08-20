@@ -1,13 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-
-interface RuntimeSupabaseConfig {
-  url?: string;
-  anonKey?: string;
-}
-
-let url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
-let anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
-let configLoaded = false;
+import { getCloudConfig } from './cloud-config';
 
 function isValidConfig(candidateUrl?: string, candidateKey?: string): boolean {
   return Boolean(
@@ -19,50 +11,39 @@ function isValidConfig(candidateUrl?: string, candidateKey?: string): boolean {
   );
 }
 
-export function isSupabaseConfigured(): boolean {
-  return isValidConfig(url, anonKey);
+function resolveConfig(): { url: string; anonKey: string } {
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
+  const envKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim();
+  if (isValidConfig(envUrl, envKey)) {
+    return { url: envUrl!, anonKey: envKey! };
+  }
+  const cloud = getCloudConfig();
+  if (isValidConfig(cloud.url, cloud.anonKey)) {
+    return cloud;
+  }
+  return { url: '', anonKey: '' };
 }
 
-/** 构建时 env 为空时，尝试加载 public/supabase-config.json（GitHub Pages 免 Secrets 方案） */
-export async function initSupabaseConfig(): Promise<void> {
-  if (configLoaded || isSupabaseConfigured()) {
-    configLoaded = true;
-    return;
-  }
-
-  try {
-    const response = await fetch(`${import.meta.env.BASE_URL}supabase-config.json`, {
-      cache: 'no-cache',
-    });
-    if (!response.ok) return;
-
-    const cfg = (await response.json()) as RuntimeSupabaseConfig;
-    const nextUrl = cfg.url?.trim();
-    const nextKey = cfg.anonKey?.trim();
-    if (isValidConfig(nextUrl, nextKey)) {
-      url = nextUrl;
-      anonKey = nextKey;
-      client = null;
-    }
-  } catch {
-    // 无 runtime 配置时保持 Demo 模式
-  } finally {
-    configLoaded = true;
-  }
+export function isSupabaseConfigured(): boolean {
+  const cfg = resolveConfig();
+  return isValidConfig(cfg.url, cfg.anonKey);
 }
 
 let client: SupabaseClient | null = null;
 
 export function getSupabase(): SupabaseClient {
   if (!isSupabaseConfigured()) {
-    throw new Error(
-      'Supabase 未配置：请设置 GitHub Secrets（VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY）或 public/supabase-config.json',
-    );
+    throw new Error('Supabase 未配置');
   }
   if (!client) {
-    client = createClient(url!, anonKey!);
+    const cfg = resolveConfig();
+    client = createClient(cfg.url, cfg.anonKey);
   }
   return client;
+}
+
+export function resetSupabaseClient(): void {
+  client = null;
 }
 
 export async function getSessionUserEmail(): Promise<string | null> {

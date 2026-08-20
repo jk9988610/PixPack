@@ -23,14 +23,15 @@ npm run dev
 
 ## Supabase 初始化
 
-全程 **SQL Editor** 完成，无需 Dashboard 点 New bucket。详见 **[docs/SUPABASE.md](docs/SUPABASE.md)**。
+与 [Card-World](https://github.com/jk9988610/Card-World) **共用同一项目**；凭证在 `src/supabase/cloud-config.ts`（对照其 `js/cloud-config.js`），**无需 GitHub Secrets** 即可连上。
 
-1. SQL Editor → [`supabase/schema-pixpack-bucket.sql`](supabase/schema-pixpack-bucket.sql)（仅建桶）或 [`schema-pixpack.sql`](supabase/schema-pixpack.sql)（建桶+表）
-2. SQL Editor → [`supabase/schema-pixpack-storage-policies.sql`](supabase/schema-pixpack-storage-policies.sql)
-3. 网页登录后上传，或 Storage 上传 + `seed-player.sql`
-4. Auth → Email Magic Link；GitHub Secrets 注入 URL / anon key
+1. SQL Editor → [`supabase/schema-pixpack-full-part1.sql`](supabase/schema-pixpack-full-part1.sql) + [`part2`](supabase/schema-pixpack-full-part2.sql)
+2. 打开 Pages，顶栏应显示 **Supabase 已连接**
+3. 选 PNG → 保存到 Supabase
 
-## GitHub Secrets
+详见 **[docs/SUPABASE.md](docs/SUPABASE.md)**。
+
+## GitHub Secrets（可选覆盖）
 
 在仓库 Settings → Secrets → Actions 添加：
 
