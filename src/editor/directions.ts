@@ -1,25 +1,23 @@
 import type { AnimationDef, CharacterMeta } from '../types';
 
-export const DIRECTION_IDS = ['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'] as const;
+/** 行序：南(正) → 北(背) → 东(侧) → 西(侧) */
+export const DIRECTION_IDS = ['s', 'n', 'e', 'w'] as const;
 export type DirectionId = (typeof DIRECTION_IDS)[number];
 
 export const DIRECTION_LABELS: Record<DirectionId, string> = {
   s: '↓ 南',
-  sw: '↙ 西南',
-  w: '← 西',
-  nw: '↖ 西北',
   n: '↑ 北',
-  ne: '↗ 东北',
   e: '→ 东',
-  se: '↘ 东南',
+  w: '← 西',
 };
 
-export const FRAMES_PER_DIRECTION = 10;
+export const FRAMES_PER_DIRECTION = 2;
 export const DIRECTION_COUNT = DIRECTION_IDS.length;
 export const TOTAL_SHEET_FRAMES = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
 
-export const IDLE_FRAME_INDICES = [0, 1, 2, 3];
-export const WALK_FRAME_INDICES = [4, 5, 6, 7, 8, 9];
+/** 帧 0 = idle，帧 1 = walk */
+export const IDLE_FRAME = 0;
+export const WALK_FRAME = 1;
 
 export function directionIndex(id: DirectionId): number {
   return DIRECTION_IDS.indexOf(id);
@@ -41,18 +39,14 @@ export function resolveTextureIndex(
   return direction * perDir + frameInDirection;
 }
 
-export function isEightDirectionMeta(meta: CharacterMeta): boolean {
+export function isDirectionalMeta(meta: CharacterMeta): boolean {
   return Boolean(meta.directions?.length) && meta.frames.length > FRAMES_PER_DIRECTION;
 }
 
-export function buildEightDirectionMeta(
-  frameWidth = 16,
-  frameHeight = 16,
-  scale = 4,
-): CharacterMeta {
+export function buildCharacterMeta(frameWidth = 8, frameHeight = 8, scale = 6): CharacterMeta {
   const animations: Record<string, AnimationDef> = {
-    idle: { frames: [...IDLE_FRAME_INDICES], fps: 4, loop: true },
-    walk: { frames: [...WALK_FRAME_INDICES], fps: 8, loop: true },
+    idle: { frames: [IDLE_FRAME], fps: 2, loop: true },
+    walk: { frames: [WALK_FRAME], fps: 4, loop: true },
   };
 
   const frames = Array.from({ length: TOTAL_SHEET_FRAMES }, (_, i) => ({

@@ -18,7 +18,7 @@ node scripts/generate-demo-spritesheet.mjs
 npm run dev
 ```
 
-**画室**：主界面左侧点「画室」→ 16×16 骨骼蒙皮、**8 朝向**（暗黑式，南/西南/…/东南各行独立）→ 保存到 Supabase。
+**画室**：8×8 像素 · 4 朝向（南/北 + 东/西侧）· 2 帧（idle/walk）→ 保存到 Supabase。
 
 ## Supabase 初始化
 

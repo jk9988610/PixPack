@@ -22,9 +22,9 @@ const headers = {
   Authorization: `Bearer ${ANON}`,
 };
 
-const FRAME_W = 16;
-const FRAMES_PER_DIRECTION = 10;
-const DIRECTION_COUNT = 8;
+const FRAME_W = 8;
+const FRAMES_PER_DIRECTION = 2;
+const DIRECTION_COUNT = 4;
 const TOTAL_FRAMES = FRAMES_PER_DIRECTION * DIRECTION_COUNT;
 
 async function main() {
@@ -53,13 +53,13 @@ async function main() {
   const meta = {
     frameWidth: FRAME_W,
     frameHeight: FRAME_W,
-    scale: 4,
+    scale: 6,
     filter: 'nearest',
-    directions: ['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'],
+    directions: ['s', 'n', 'e', 'w'],
     framesPerDirection: FRAMES_PER_DIRECTION,
     animations: {
-      idle: { frames: [0, 1, 2, 3], fps: 4, loop: true },
-      walk: { frames: [4, 5, 6, 7, 8, 9], fps: 8, loop: true },
+      idle: { frames: [0], fps: 2, loop: true },
+      walk: { frames: [1], fps: 4, loop: true },
     },
     frames: Array.from({ length: TOTAL_FRAMES }, (_, i) => ({
       x: (i % FRAMES_PER_DIRECTION) * FRAME_W,

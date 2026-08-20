@@ -2,7 +2,7 @@ import { Application, Assets, Container, Rectangle, Sprite, Texture } from 'pixi
 import {
   DIRECTION_COUNT,
   directionIndex,
-  isEightDirectionMeta,
+  isDirectionalMeta,
   resolveTextureIndex,
   type DirectionId,
 } from '../editor/directions';
@@ -13,7 +13,7 @@ export class SpritePlayer {
   private sprite: Sprite | null = null;
   private meta: CharacterMeta | null = null;
   private animation = 'idle';
-  private direction = 6;
+  private direction = 2;
   private frameIndex = 0;
   private elapsed = 0;
   private textures: Texture[] = [];
@@ -92,7 +92,7 @@ export class SpritePlayer {
     this.sprite.y = this.app!.screen.height / 2;
     this.app!.stage.addChild(this.sprite);
 
-    this.direction = isEightDirectionMeta(this.meta) ? 6 : 0;
+    this.direction = isDirectionalMeta(this.meta) ? 2 : 0;
     this.setAnimation('idle');
     this.app!.ticker.add(this.tick, this);
   }
@@ -133,7 +133,7 @@ export class SpritePlayer {
   async hotReload(objectUrl: string, meta: CharacterMeta): Promise<void> {
     if (!this.app) return;
     this.meta = meta;
-    if (!isEightDirectionMeta(meta)) {
+    if (!isDirectionalMeta(meta)) {
       this.direction = 0;
     }
     const baseTexture = await Assets.load<Texture>({ src: objectUrl, parser: 'texture' });

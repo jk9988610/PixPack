@@ -1,7 +1,7 @@
 import type { CharacterMeta, ManifestPack } from '../types';
-import { buildEightDirectionMeta } from '../editor/directions';
+import { buildCharacterMeta } from '../editor/directions';
 
-export const DEFAULT_CHARACTER_META: CharacterMeta = buildEightDirectionMeta();
+export const DEFAULT_CHARACTER_META: CharacterMeta = buildCharacterMeta();
 
 const DEMO_BOOTSTRAP: ManifestPack = {
   pack: {
@@ -36,7 +36,7 @@ const DEMO_PLAYER: ManifestPack = {
     priority: 10,
     version: 1,
     zone_id: null,
-    byte_size: 8192,
+    byte_size: 512,
   },
   assets: [
     {
@@ -45,7 +45,7 @@ const DEMO_PLAYER: ManifestPack = {
       kind: 'spritesheet',
       storage_path: 'local/demo/spritesheet.png',
       public_url: `${import.meta.env.BASE_URL}demo/spritesheet.png`,
-      byte_size: 2048,
+      byte_size: 128,
     },
   ],
   characters: [
