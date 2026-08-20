@@ -131,8 +131,8 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     if (!file || !playerRef) return;
     pendingFile = file;
     await playerRef.hotReload(URL.createObjectURL(file), buildMeta());
-    saveBtn.disabled = !signedIn || !options.isConfigured;
-    showToast('已本地预览新精灵图');
+    saveBtn.disabled = !options.isConfigured;
+    showToast('已本地预览新精灵图，可直接保存');
   });
 
   saveBtn.addEventListener('click', async () => {
@@ -147,7 +147,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     } catch (error) {
       showToast(error instanceof Error ? error.message : '保存失败');
     } finally {
-      saveBtn.disabled = !signedIn || !options.isConfigured || !pendingFile;
+      saveBtn.disabled = !options.isConfigured || !pendingFile;
     }
   });
 
@@ -174,7 +174,7 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
     setSignedIn(value) {
       signedIn = value;
       authBtn.textContent = value ? '退出' : '登录';
-      saveBtn.disabled = !value || !options.isConfigured || !pendingFile;
+      saveBtn.disabled = !options.isConfigured || !pendingFile;
     },
     showToast,
     setPrefetchStatus(text) {

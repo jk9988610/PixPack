@@ -24,14 +24,14 @@
 
 登录 PixPack 网页 → 上传精灵图 → 保存，由应用自动写入 Storage + DB。
 
-## RLS 摘要
+## RLS 摘要（完全公开，同 Card-World）
 
 | 操作 | anon | authenticated |
 |------|------|---------------|
-| SELECT 表 | ✅ | ✅ |
-| INSERT/UPDATE/DELETE 表 | ❌ | ✅ |
-| Storage 读 | ✅ | ✅ |
-| Storage 写 | ❌ | ✅ |
+| SELECT / INSERT / UPDATE / DELETE 表 | ✅ | ✅ |
+| Storage 读 / 写 | ✅ | ✅ |
+
+无需登录即可上传保存。若曾执行旧版「仅 authenticated 可写」，请再跑 [`schema-pixpack-open-access.sql`](../supabase/schema-pixpack-open-access.sql)。
 
 ## 共用项目桶一览
 

@@ -30,8 +30,7 @@ assets/packs/{pack_slug}/v{version}/spritesheet.png
 
 ## RLS（MVP）
 
-- **SELECT**：`anon` + `authenticated` 可读（Pages 预览无需登录）
-- **INSERT/UPDATE/DELETE**：仅 `authenticated`（未登录写入应被拒绝）
+- **SELECT / INSERT / UPDATE / DELETE**：`anon` + `authenticated` 均可（完全公开，对照 Card-World）
 
 ## 加载权重
 

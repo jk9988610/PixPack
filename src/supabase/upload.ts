@@ -11,10 +11,6 @@ export interface SaveCharacterInput {
 
 export async function saveCharacterSheet(input: SaveCharacterInput): Promise<void> {
   const supabase = getSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error('请先登录后再上传素材');
 
   const { data: pack, error: packError } = await supabase
     .from('asset_packs')
