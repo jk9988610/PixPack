@@ -6,12 +6,21 @@ import {
   undoArtHistory,
 } from '../editor/history';
 import {
+  BONE_OPTIONS,
+  createDefaultSkinGrid,
+  fillBoneOnFrame,
+  floodFillBone,
+  getSkeletonGuideColor,
+  isPaintable,
+  mergeAllSkinWithSkeleton,
+  type BoneId,
+} from '../editor/skeleton';
+import {
+  CANVAS_ZOOM,
   FRAME_COUNT,
   FRAME_H,
   FRAME_W,
   PRESET_PALETTE,
-  createEmptyGrid,
-  floodFill,
   gridIndex,
   gridToPngBlob,
   loadGridFromImageUrl,
@@ -51,12 +60,16 @@ export function createStudioPanel(
           <button type="button" class="btn btn-ghost" data-undo>撤销</button>
           <button type="button" class="btn btn-ghost" data-redo>重做</button>
         </div>
+        <div class="studio-group">
+          <span class="studio-label">骨骼</span>
+          <div class="bone-tabs" data-bone-tabs></div>
+        </div>
         <div class="studio-group palette-row" data-palette></div>
         <input type="color" data-color value="#e94560" class="color-input" />
       </div>
       <div class="studio-canvas-wrap">
-        <canvas width="${FRAME_W * 12}" height="${FRAME_H * 12}" data-pixel-canvas class="pixel-canvas"></canvas>
-        <p class="studio-hint">32×32 单帧 · 放大 12× · idle 0–3 · walk 4–9</p>
+        <canvas width="${FRAME_W * CANVAS_ZOOM}" height="${FRAME_H * CANVAS_ZOOM}" data-pixel-canvas class="pixel-canvas"></canvas>
+        <p class="studio-hint">16×16 单帧 · 骨骼蒙皮 · 放大 ${CANVAS_ZOOM}× · idle 0–3 · walk 4–9</p>
       </div>
       <div class="studio-actions">
         <button type="button" class="btn btn-ghost" data-apply-preview>应用到预览</button>
@@ -68,11 +81,12 @@ export function createStudioPanel(
   const canvas = root.querySelector<HTMLCanvasElement>('[data-pixel-canvas]')!;
   const ctx = canvas.getContext('2d')!;
   const frameTabs = root.querySelector<HTMLElement>('[data-frame-tabs]')!;
+  const boneTabs = root.querySelector<HTMLElement>('[data-bone-tabs]')!;
   const paletteEl = root.querySelector<HTMLElement>('[data-palette]')!;
   const colorInput = root.querySelector<HTMLInputElement>('[data-color]')!;
   const saveBtn = root.querySelector<HTMLButtonElement>('[data-save-studio]')!;
 
-  let grid = createEmptyGrid();
+  let grid = createDefaultSkinGrid();
   const history = createArtHistory();
   resetArtHistory(history, grid);
 
@@ -92,6 +106,16 @@ export function createStudioPanel(
     btn.addEventListener('click', () => selectFrame(i));
     frameTabs.appendChild(btn);
   }
+
+  BONE_OPTIONS.forEach(({ id, label }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bone-btn';
+    btn.textContent = label;
+    btn.title = `用当前颜色填充「${label}」`;
+    btn.addEventListener('click', () => fillBone(id));
+    boneTabs.appendChild(btn);
+  });
 
   PRESET_PALETTE.forEach((swatch, idx) => {
     const btn = document.createElement('button');
@@ -175,11 +199,21 @@ export function createStudioPanel(
   }
 
   function setCellColor(lx: number, ly: number, value: string): void {
+    if (!isPaintable(currentFrame, lx, ly)) return;
     const { x, y } = localToGlobal(currentFrame, lx, ly);
     grid[gridIndex(x, y)] = value;
   }
 
+  function fillBone(bone: BoneId): void {
+    fillBoneOnFrame(grid, currentFrame, bone, color);
+    pushArtHistory(history, grid);
+    redraw();
+    schedulePreview();
+  }
+
   function applyTool(lx: number, ly: number): void {
+    if (!isPaintable(currentFrame, lx, ly)) return;
+
     if (tool === 'picker') {
       const picked = getCellColor(lx, ly);
       if (picked !== 'transparent') {
@@ -189,10 +223,7 @@ export function createStudioPanel(
       return;
     }
     if (tool === 'fill') {
-      const { x, y } = localToGlobal(currentFrame, lx, ly);
-      const target = grid[gridIndex(x, y)] ?? 'transparent';
-      const fillColor = color;
-      if (floodFill(grid, x, y, target, fillColor)) strokeDirty = true;
+      if (floodFillBone(grid, currentFrame, lx, ly, color)) strokeDirty = true;
       redraw();
       return;
     }
@@ -219,6 +250,17 @@ export function createStudioPanel(
   function redraw(): void {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const scale = canvas.width / FRAME_W;
+
+    for (let ly = 0; ly < FRAME_H; ly++) {
+      for (let lx = 0; lx < FRAME_W; lx++) {
+        const guide = getSkeletonGuideColor(currentFrame, lx, ly);
+        if (guide) {
+          ctx.fillStyle = guide;
+          ctx.fillRect(lx * scale, ly * scale, scale, scale);
+        }
+      }
+    }
+
     for (let ly = 0; ly < FRAME_H; ly++) {
       for (let lx = 0; lx < FRAME_W; lx++) {
         const c = getCellColor(lx, ly);
@@ -227,13 +269,20 @@ export function createStudioPanel(
         ctx.fillRect(lx * scale, ly * scale, scale, scale);
       }
     }
+
     ctx.strokeStyle = '#e9456088';
     ctx.lineWidth = 2;
     ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
   }
 
+  function prepareGridForExport(): string[] {
+    const copy = [...grid];
+    mergeAllSkinWithSkeleton(copy);
+    return copy;
+  }
+
   async function applyPreview(): Promise<void> {
-    const blob = await gridToPngBlob(grid);
+    const blob = await gridToPngBlob(prepareGridForExport());
     await options.onPreview(URL.createObjectURL(blob));
   }
 
@@ -245,7 +294,7 @@ export function createStudioPanel(
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = '保存中…';
-      const blob = await gridToPngBlob(grid);
+      const blob = await gridToPngBlob(prepareGridForExport());
       const file = new File([blob], 'spritesheet.png', { type: 'image/png' });
       await options.onSave(file);
       options.showToast('已保存到 Supabase，刷新后加载云端版本');
@@ -284,11 +333,13 @@ export function createStudioPanel(
 
   async function loadFromUrl(url: string): Promise<void> {
     grid = await loadGridFromImageUrl(url);
+    mergeAllSkinWithSkeleton(grid);
     resetArtHistory(history, grid);
     redraw();
   }
 
   redraw();
+  void applyPreview();
 
   if (options.initialImageUrl) {
     void loadFromUrl(options.initialImageUrl).catch(() => undefined);

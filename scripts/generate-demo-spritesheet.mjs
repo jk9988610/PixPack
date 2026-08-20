@@ -6,17 +6,53 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const outPath = join(__dirname, '../public/demo/spritesheet.png');
 
-const width = 320;
-const height = 32;
-const frameW = 32;
+const FRAME_W = 16;
+const FRAME_H = 16;
+const FRAME_COUNT = 10;
+const width = FRAME_W * FRAME_COUNT;
+const height = FRAME_H;
 
-const palette = [
-  [0, 0, 0, 0],
-  [233, 69, 96, 255],
-  [255, 255, 255, 255],
-  [26, 26, 46, 255],
-  [125, 237, 159, 255],
+const CHAR_TO_BONE = {
+  '.': null,
+  h: 'head',
+  b: 'body',
+  a: 'arm',
+  f: 'leg_f',
+  r: 'leg_b',
+};
+
+const DEFAULT_SKIN = {
+  head: [254, 202, 87, 255],
+  body: [233, 69, 96, 255],
+  arm: [254, 202, 87, 255],
+  leg_f: [0, 102, 255, 255],
+  leg_b: [0, 68, 187, 255],
+};
+
+const FRAME_TEMPLATES = [
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n....f...........\n...bb...b.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....f..r........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....r...........\n....f...........\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....f..r........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n....f...........\n...bb...b.......\n...bb..bb.......\n................\n................\n................\n................\n................\n................\n................\n................`,
+  `................\n.....hh.........\n....hhhh........\n...bbbbbb.......\n...bbbbbb.......\n...bb..bb.......\n....r..f........\n................\n................\n................\n................\n................\n................\n................\n................\n................`,
 ];
+
+function parseTemplate(text) {
+  const bones = [];
+  for (const row of text.trim().split('\n')) {
+    for (const ch of row) {
+      bones.push(CHAR_TO_BONE[ch] ?? null);
+    }
+  }
+  return bones;
+}
+
+const SKELETON_FRAMES = FRAME_TEMPLATES.map(parseTemplate);
 
 function crc32(data) {
   let c = 0xffffffff;
@@ -41,22 +77,15 @@ for (let y = 0; y < height; y++) {
   const rowStart = y * (width * 4 + 1);
   raw[rowStart] = 0;
   for (let x = 0; x < width; x++) {
-    const frame = Math.floor(x / frameW);
-    const localX = x % frameW;
-    const body = localX > 8 && localX < 24 && y > 8 && y < 28;
-    const head = localX > 11 && localX < 21 && y > 2 && y < 12;
-    const leg = (localX === 12 + (frame % 3)) || (localX === 19 - (frame % 2)) && y > 24;
-    let idx = 0;
-    if (body) idx = 1;
-    else if (head) idx = 2;
-    else if (leg) idx = 4;
-    else if (localX === 0 || localX === 31 || y === 0 || y === 31) idx = 3;
-    const [r, g, b, a] = palette[idx] ?? palette[0];
+    const frame = Math.floor(x / FRAME_W);
+    const localX = x % FRAME_W;
+    const bone = SKELETON_FRAMES[frame]?.[localX + y * FRAME_W];
+    const rgba = bone ? DEFAULT_SKIN[bone] : [0, 0, 0, 0];
     const i = rowStart + 1 + x * 4;
-    raw[i] = r;
-    raw[i + 1] = g;
-    raw[i + 2] = b;
-    raw[i + 3] = a;
+    raw[i] = rgba[0];
+    raw[i + 1] = rgba[1];
+    raw[i + 2] = rgba[2];
+    raw[i + 3] = rgba[3];
   }
 }
 
