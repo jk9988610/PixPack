@@ -1,3 +1,4 @@
+import { initSupabaseConfig } from './supabase/client';
 import { startApp } from './app/app';
 import './styles.css';
 
@@ -6,4 +7,4 @@ if (!root) {
   throw new Error('#app 未找到');
 }
 
-void startApp(root);
+void initSupabaseConfig().then(() => startApp(root));

@@ -4,7 +4,32 @@
 
 可与 Card-World（桶 `art`）、HarmonyForge（桶 `audio`）**共用同一 Supabase 项目**，仅桶名与表不同。
 
-## 操作顺序（全程 SQL Editor，无需 Dashboard 建桶）
+## 连接 Supabase（二选一）
+
+Demo 模式表示**构建时未注入 URL/Key**。任选一种方式，然后重新部署（push 或 Actions 重跑）：
+
+### 方式 A：GitHub Secrets（推荐）
+
+仓库 **Settings → Secrets and variables → Actions → New repository secret**：
+
+| Secret | 值 |
+|--------|-----|
+| `VITE_SUPABASE_URL` | `https://xxxx.supabase.co`（Project Settings → API → Project URL） |
+| `VITE_SUPABASE_ANON_KEY` | Project Settings → API → anon public |
+
+保存后：**Actions → Deploy GitHub Pages → Run workflow**，或任意 push 到 main。
+
+### 方式 B：运行时配置文件（免 Secrets）
+
+```bash
+cp public/supabase-config.example.json public/supabase-config.json
+# 编辑 url 与 anonKey 填入真实值
+git add public/supabase-config.json && git commit -m "chore: 配置 Supabase" && git push
+```
+
+> anon key 本身可公开；勿提交 service_role key。
+
+## 操作顺序（全程 SQL Editor）
 
 | 步骤 | 位置 | 操作 |
 |------|------|------|

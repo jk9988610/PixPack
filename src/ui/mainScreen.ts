@@ -76,7 +76,9 @@ export function createMainScreen(root: HTMLElement, options: MainScreenOptions):
   const configBadge = root.querySelector<HTMLElement>('[data-config-badge]')!;
   const toastEl = root.querySelector<HTMLElement>('[data-toast]')!;
 
-  configBadge.textContent = options.isConfigured ? 'Supabase 已连接' : 'Demo 模式（未配置 Supabase）';
+  configBadge.textContent = options.isConfigured
+    ? 'Supabase 已连接'
+    : 'Demo 模式 — 请配置 Secrets 或 public/supabase-config.json';
 
   let playerRef: SpritePlayer | null = null;
   let pendingFile: File | null = null;
